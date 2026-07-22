@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planificador C-29">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#0a0e14">
+<title>Planificador Misión Aérea — Carabineros de Chile · Sección Aérea Talca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg0:#020705;--bg1:#060d09;--bg2:#0b1610;--bg3:#0f1c13;
+  --panel:#070d0a;--border:#1a3d24;--green:#00e676;--green2:#69f0ae;
+  --cyan:#00e5ff;--amber:#ffab00;--red:#ff1744;--blue:#40c4ff;
+  --text:#9ee8bf;--muted:#3a5e47;--carab:#1b5e20;--carab2:#0c2f12;
+  --gold:#ffd700;--white:#e8f5e9;--purple:#ce93d8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg0);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:14px}
+
+/* HEADER */
+#hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(90deg,var(--carab2),var(--bg1),var(--carab2));
+  border-bottom:2px solid var(--border);padding:6px 14px;height:72px;
+  position:relative;z-index:50;
+}
+.logo-wrap{display:flex;align-items:center;gap:10px}
+.shield{
+  display:flex;align-items:center;justify-content:center;
+  height:58px;padding:2px 4px;
+  filter:drop-shadow(0 0 8px #ffd70055) drop-shadow(0 0 3px #c8a84b44);
+}
+.shield img{
+  height:58px;width:auto;
+  filter:brightness(1.05) contrast(1.1) sepia(0.08);
+}
+.title-wrap h1{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--gold);letter-spacing:2px}
+.title-wrap p{font-size:11px;color:var(--green2);letter-spacing:1px}
+.status-row{display:flex;gap:12px;align-items:center}
+.stat-chip{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-family:'Orbitron',sans-serif;font-size:10px;text-align:center}
+.stat-chip .sv{font-size:14px;font-weight:700;color:var(--green);display:block}
+#clock{font-family:'Orbitron',sans-serif;font-size:18px;color:var(--cyan);letter-spacing:3px}
+
+/* MAIN */
+#main{display:grid;grid-template-columns:315px 1fr 285px;height:calc(100vh - 72px - 26px)}
+
+/* LEFT PANEL */
+#lpanel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.tab-bar{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tab-bar::-webkit-scrollbar{height:3px}
+.tab-bar::-webkit-scrollbar-thumb{background:var(--border)}
+.tab-btn{flex-shrink:0;padding:7px 10px;font-family:'Orbitron',sans-serif;font-size:9px;font-weight:600;letter-spacing:1px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;background:transparent;border-left:none;border-right:none;border-top:none}
+.tab-btn:hover{color:var(--green2);background:var(--bg3)}
+.tab-btn.on{color:var(--green);border-bottom-color:var(--green);background:var(--bg1)}
+.tab-content{flex:1;overflow-y:auto;display:none;flex-direction:column;padding:10px;gap:8px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.tab-content.on{display:flex}
+.tab-content::-webkit-scrollbar{width:4px}
+.tab-content::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* WIDGETS */
+.sect{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px}
+.sect-title{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:600;color:var(--green);letter-spacing:2px;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:5px}
+label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+input,select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;padding:6px 8px;outline:none;transition:border .2s}
+input:focus,select:focus{border-color:var(--green)}
+select option{background:var(--bg1)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.btn{background:linear-gradient(135deg,var(--carab),#2e7d32);border:1px solid var(--green);border-radius:4px;color:var(--white);font-family:'Orbitron',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;padding:7px 12px;cursor:pointer;text-transform:uppercase;transition:all .2s;width:100%}
+.btn:hover{background:linear-gradient(135deg,#2e7d32,#43a047);box-shadow:0 0 10px #00e67644}
+.btn-sm{padding:5px 8px;font-size:9px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--green2);font-family:'Orbitron',sans-serif;cursor:pointer;transition:all .2s}
+.btn-sm:hover{border-color:var(--green);color:var(--green)}
+.btn-danger{background:linear-gradient(135deg,#c62828,#b71c1c);border-color:var(--red);color:#fff}
+.btn-cyan{background:linear-gradient(135deg,#006064,#00838f);border-color:var(--cyan);color:#fff}
+.btn-amber{background:linear-gradient(135deg,#e65100,#bf360c);border-color:var(--amber);color:#fff}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid #1a3d2422}
+.kv:last-child{border-bottom:none}
+.kv .k{font-size:11px;color:var(--muted)}
+.kv .v{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--green2);font-weight:500}
+.kv .v.warn{color:var(--amber)}
+.kv .v.danger{color:var(--red)}
+.kv .v.ok{color:var(--green)}
+.wplist{list-style:none;display:flex;flex-direction:column;gap:4px}
+.wpi{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:6px 8px;cursor:pointer;transition:border .15s}
+.wpi:hover{border-color:var(--green)}
+.wpi .idx{font-family:'Orbitron',sans-serif;font-size:10px;color:var(--muted);background:var(--bg2);border-radius:3px;padding:2px 5px;min-width:24px;text-align:center}
+.wpi .name{flex:1;font-size:12px;color:var(--text)}
+.wpi .dist{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--cyan)}
+.wpi .rm{color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px}
+.wpi .rm:hover{color:var(--red)}
+.cat{font-family:'Orbitron',sans-serif;font-size:10px;padding:2px 7px;border-radius:3px;font-weight:700}
+.cat-VFR{background:#1b5e2088;color:#00e676;border:1px solid #00e676}
+.cat-MVFR{background:#1a237e88;color:#40c4ff;border:1px solid #40c4ff}
+.cat-IFR{background:#e65c0088;color:#ffab00;border:1px solid #ffab00}
+.cat-LIFR{background:#b71c1c88;color:#ff1744;border:1px solid #ff1744}
+.cat-UNK{background:#37474f88;color:#90a4ae;border:1px solid #546e7a}
+.fuel-bar-bg{height:16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:6px 0}
+.fuel-bar-fill{height:100%;border-radius:8px;transition:width .4s;background:linear-gradient(90deg,var(--red),var(--amber),var(--green))}
+.prog-wrap{margin:4px 0}
+.prog-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px}
+.prog-bg{height:10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);overflow:hidden}
+.prog-fill{height:100%;border-radius:5px;transition:width .3s;background:var(--green)}
+.prog-fill.warn{background:var(--amber)}
+.prog-fill.danger{background:var(--red)}
+
+/* MAP */
+#mapwrap{position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+
+/* WINDY FLOAT */
+#windy-float{position:absolute;top:60px;right:16px;width:380px;height:280px;z-index:800;border:2px solid var(--cyan);border-radius:8px;overflow:hidden;display:none;flex-direction:column;background:var(--bg0);box-shadow:0 0 24px #00e5ff44}
+#windy-header{background:linear-gradient(90deg,var(--bg2),var(--bg3));border-bottom:1px solid var(--cyan);display:flex;align-items:center;justify-content:space-between;padding:5px 10px;cursor:move;user-select:none;flex-shrink:0}
+#windy-header .wt{font-family:'Orbitron',sans-serif;font-size:10px;color:var(--cyan);letter-spacing:2px}
+.wbtn{background:var(--bg3);border:1px solid var(--border);border-radius:3px;color:var(--cyan);padding:2px 8px;cursor:pointer;font-family:'Orbitron',sans-serif;font-size:9px}
+.wbtn:hover{border-color:var(--cyan)}
+#windy-body{flex:1;min-height:0}
+#windy-body iframe{width:100%;height:100%;border:none}
+
+/* METEOGRAM */
+#meteo-popup{position:absolute;bottom:60px;left:16px;width:430px;height:250px;z-index:900;border:2px solid var(--amber);border-radius:8px;background:var(--bg1);display:none;flex-direction:column;box-shadow:0 0 20px #ffab0044}
+#meteo-header{background:linear-gradient(90deg,var(--bg2),var(--bg3));border-bottom:1px solid var(--amber);display:flex;align-items:center;justify-content:space-between;padding:5px 10px;cursor:move;user-select:none;flex-shrink:0}
+#meteo-header .mt{font-family:'Orbitron',sans-serif;font-size:10px;color:var(--amber);letter-spacing:2px}
+.mwbtn{background:var(--bg3);border:1px solid var(--amber);border-radius:3px;color:var(--amber);padding:2px 8px;cursor:pointer;font-family:'Orbitron',sans-serif;font-size:9px}
+#meteo-loc{font-size:10px;color:var(--muted);text-align:center;padding:2px 0;background:var(--bg2)}
+#meteo-body{flex:1;padding:6px;min-height:0;position:relative}
+#meteoChart{width:100%!important;height:100%!important}
+
+/* RIGHT PANEL */
+#rpanel{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:10px;gap:8px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+#rpanel::-webkit-scrollbar{width:4px}
+#rpanel::-webkit-scrollbar-thumb{background:var(--border)}
+.metar-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;transition:border .2s;cursor:pointer}
+.metar-card:hover{border-color:var(--green)}
+.mc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.mc-icao{font-family:'Orbitron',sans-serif;font-size:13px;font-weight:700;color:var(--green)}
+.mc-raw{font-size:10px;color:var(--muted);margin:4px 0;line-height:1.4;word-break:break-all}
+.mc-vals{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px}
+.mc-kv .mk{color:var(--muted);font-size:10px}
+.mc-kv .mv{color:var(--green2);font-family:'Orbitron',sans-serif;font-size:11px}
+.notam-item{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;line-height:1.5;color:var(--text);margin-bottom:4px}
+.notam-item .ni-id{font-family:'Orbitron',sans-serif;font-size:10px;color:var(--amber);margin-bottom:3px}
+.notam-none{color:var(--muted);font-size:11px;text-align:center;padding:10px}
+
+/* MAP BTN GROUP */
+.map-btn-group{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:700}
+.map-btn{background:var(--bg1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Orbitron',sans-serif;font-size:9px;padding:5px 10px;cursor:pointer;transition:all .2s}
+.map-btn:hover{border-color:var(--green);color:var(--green)}
+
+/* ALT CARD */
+.alt-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.alt-top{display:flex;justify-content:space-between;align-items:center}
+.alt-icao{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;color:var(--amber)}
+.alt-dist{font-family:'Orbitron',sans-serif;font-size:11px;color:var(--cyan)}
+.alt-fuel-bar{height:8px;background:var(--bg3);border-radius:4px;border:1px solid var(--border);overflow:hidden}
+.alt-fuel-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--red),var(--amber),var(--green))}
+
+/* W&B */
+.wb-bar{height:20px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;position:relative;margin:6px 0}
+.wb-cg{position:absolute;top:0;height:100%;width:4px;background:var(--amber);border-radius:2px;transform:translateX(-50%)}
+.wb-env{position:absolute;top:0;height:100%;background:#00e67622;border-radius:10px}
+.wb-label{font-size:10px;color:var(--muted);text-align:center}
+
+/* NORM */
+.norm-sect{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px}
+.norm-title{font-family:'Orbitron',sans-serif;font-size:9px;color:var(--green);letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.norm-rule{font-size:11px;color:var(--text);padding:3px 0;border-bottom:1px solid #1a3d2418;line-height:1.5}
+.norm-rule:last-child{border-bottom:none}
+.norm-rule .nr-key{color:var(--green2)}
+.badge{display:inline-block;font-family:'Orbitron',sans-serif;font-size:9px;padding:2px 6px;border-radius:3px;margin-left:6px}
+.badge-easa{background:#1565c088;color:#64b5f6;border:1px solid #1565c0}
+.badge-faa{background:#4a148c88;color:#ce93d8;border:1px solid #7b1fa2}
+.badge-icao{background:#1b5e2088;color:#69f0ae;border:1px solid #2e7d32}
+
+/* TOGGLE */
+.tog-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.tog-label{font-size:11px;color:var(--muted)}
+.tog{width:36px;height:18px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:#1b5e20;border-color:var(--green)}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--muted);border-radius:50%;transition:all .2s}
+.tog.on::after{left:20px;background:var(--green)}
+
+/* MISC */
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:20px;right:20px;z-index:9999;background:var(--bg2);border:1px solid var(--green);border-radius:6px;padding:10px 18px;font-size:12px;color:var(--green);font-family:'Orbitron',sans-serif;letter-spacing:1px;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#fpl-out{background:var(--bg0);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;line-height:1.6;color:var(--green2);white-space:pre-wrap;word-break:break-word;min-height:120px;font-family:'Share Tech Mono',monospace}
+#sigmet-info{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:var(--bg1);border:1px solid var(--amber);border-radius:5px;padding:5px 12px;font-family:'Orbitron',sans-serif;font-size:10px;color:var(--amber);display:none}
+.leaflet-container{background:#020705}
+.leaflet-popup-content-wrapper{background:var(--bg2)!important;border:1px solid var(--border)!important;border-radius:6px!important;color:var(--text)!important;font-family:'Share Tech Mono',monospace!important;font-size:12px!important;box-shadow:0 0 20px #00000088!important}
+.leaflet-popup-tip{background:var(--border)!important}
+.leaflet-popup-close-button{color:var(--green)!important;font-size:16px!important}
+
+/* TICKER */
+#ticker-wrap{position:fixed;bottom:0;left:0;right:0;height:26px;background:#010603ee;border-top:1px solid var(--border);z-index:1500;display:flex;align-items:center;overflow:hidden}
+#ticker-content{position:absolute;white-space:nowrap;font-size:11px;font-family:'Share Tech Mono',monospace;color:var(--green2);animation:ticker-move 90s linear infinite;will-change:transform}
+@keyframes ticker-move{0%{transform:translateX(100vw)}100%{transform:translateX(-300%)}}
+#main{display:grid;grid-template-columns:315px 1fr 285px;height:calc(100vh - 72px - 26px)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div class="logo-wrap">
+    <div class="shield"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHEAAABMCAYAAABamlijAABDiUlEQVR42u29d5Rc13Xm+zs3Vu6q6py7gUajGzlnkgAzxSwKkC1xqGRbskVZlkZje+zxNGH7zbPHExzG8kiyrBwIkJRESgJJgEgESRAEERuNDuicQ+Vcde89748GKMrhvQmURHveXV2ru3r1qlt9vtr77L2//e0j+OdxiQMHDigcPMi+gwftt36pqLx59MllU6NDK0xN3yVtqyObildZpaJbCqWylM+j65qhm65wqViYtEqlyWAwKCyFKbfb01MeKr9SXt98qXHN7VeFENaN1+3qQtlNl7L7iSdsIYR81y/Ou/nNSSnFE088oe7fv/+tBb506Yehvtd6NitW+n4rn99cKuZXFfM5r6GAZdlYRQsUlXw+j83i+jsOmKqGaSrohoauqbg0DaG7cIQo6i5zwF8W7nVXVLywtKPzlYqWbT037nfgwAH1ypUrcv/+/c7/D+L/JHgHD+5T9u1btDoppfaDL/9fd+XzuQ+k4pFb3YpWI7CIxZJEYxnm4lk5G0s6yYwlIsksNg66bohEJofL40FTVVHK5WSZzyWlbeMyTaqDflkb9ogKv6qEg378bg/+oB9bUW3d4z8Srq789tb7PvGsECK+COZede/eA8670TLfbSCKY11d6p7rlnf58vON/afOvC+djH7UFPaqfLFIJJpkYGTaGZrNOLPxjFJyoFAoKcEyLy01FZSH/FwdHmNofIGlzTXctKYFj2Fw7OwAl4cmaaiuZOXSOsbm4wwMTeDzqDJgarLc75V1ZW65tC6oNdRVEi4rQw34Jiuqmv5u+cZd3yhrXDkAcKyrS3u3udl3DYgHDuxVb1jetWsXqq69duR34wszH1WtXFk0nmRkIupcvDYtx2J5JZ/Li8bacpY31lAVNOwv/+CU8tDu9aLCoxPJFuhoquaZl4e4Y1srA0OT5C3B5pWNPHWsh3t2riAZi9JaE+TF01d5dWAGQ9OQUiHg84JTlDVlbmdVY5jVy+rVmqogjulNVzQ0/s2OBz78l0J4J2642X379tnvhrVT3yXWp933+OdtKaV+0+rKzwy9efLrdiZyRzwSdb3RPWI983IPJy6NKrpmKBXhMhFNJHnstg1Ek3lGZlPKxHxU1JX7KUqV4ek4Xk3h0uAwy+tDPPnSJV49f4Uda9vo6Rsg5DPx+n1cGZ4jHk8TzTloqkqF1+DX3ruDmnCZuDgwobw+MKFcG4/JeDJlG07BpRezOyeuXfzwH3zu1/jLLz91dtWqVaVjx7q0r33thPN/tCVKKcUNt3Tyha/sTE6M/helmNkSm41wrm/Serl7VB2dy4gtq1oRhsnc5AR3be3krw4e5eMP7SavGIT8BkdevoBwHO7fsw6XYXClf5JnXrnM5z5wK8+dGaNoSx7e3sSloSjRRJblzT7aG+r54lMnSdqSVDrL/dvaqA6GmE2maC738ZUXLlBdV00ylgRpy53Lq+1NKxq0xtZGgpX1Z1fftPO3AtWbX9m7F/XAAfkL3Su1X6T7FELYUkr16DN/+QeRa1f+vZPLiv7+MevEpXH13OCstm3tcoqlaUJuwT03d/Lcaxo5S7KsNszw7AKrltTx/KnLLGQk7Q1h5mMpvnXodf740+9jMpHmyuAUn/ngbXj8Pk4eO8n41BTvv3Mr3z1yltUttVSXGSzMZTA1heVNVXzzuVcZT6T57V+6lcpwiAe3r6LMIzndMy2OXOjXeiej8vaNWbtzSXzTwvzUS1dPH/iDzh2/9GdCCKSUihDC+T/GnS7uJ/vts8eOVVw89Z3n8pGZDyem5zl6pk9+66UrakYaIl8ssWlFFUvrK/nxK920N4YoU1WaGioQQnJ5eIrt61ei6wa3rGsiEk8CkpfP9jE8NY/H1Dn6Zj/zCwucv3yFQ69doWdwArcu2Hf7Ri70DHOyexwpVNa2VtHSUMWpvhi3bmxHlZKM5dBU7uLply6ya10zAVNw4uKQ6B2ZVbKZnF3u0bV8LHbnZz71wY4vfetHLwkhclIeUPfvPyj/xbtTeeCAKvbts48de6ojNnjhOTWXaBsfmy49d6pP75lIcdvmTm7Z2MIrF0f49g9P8h8/9T4+f+A4t2xfzsx0jLIyL3fuWMXfPHmMDR1NJNJFeganSOQkJcehfdlSSsU82CWqK8tZiMewLYfKikqEqnHhcg+WVSSdK+Fym0QWIuxZ38x7dm2kJDVUO8OXn32Vm9a2UVvhJ160OPJKD7FYDlvTKFlFpmbn6WwIyw/eud1uXVKj1bUt6bvp3gfvF662gWPHurQ9e36S1/6LA/EGgK8eenrD3Pj554vJ6cr+vinr2VN92uWROT65dw8hn8Hzr/Xw6L3b+faLFwj5DVYvrefwmSvcf/Na/tNXD7G6vYmFRJFcSVAe8rKktYbljRVUBd1UVwQwEAjFQRGgCBBIVE3HtqFQsJlJpLBVHyVpcrl/nOMnX0MTJVa11TIyOU910Mu9u9byX548xZbOGuLxFBdG47gMDa8/KFvraxgcvCaSiSi/dOcma21nk1bf3DTVufmmh+o6dr8h5QFViJ9f5Cp+vi50n338x19bn5kZOJyJzZRfuDRif/dwv5pFpZiN09lUwYO7tzKfTKKrNk31DXz7x69yx5Z2Xr84xPh8kiIm5ZVVrFwSZtPyZvxei6DfjZWziOeKxOIFMukiGcshX7QoWhZCSDymiaFIynwuwkETn6nhdmmgeRifT3GuZ4SzvZPMzEUI6kXee+cWwuEynj16kZ7hWTxeDxWVVXzkvTcXqzy2mskW1S999yhXhsZ59I4N9vqVLWpT+9LUmu3b7q1aevvLx44d0/bs2WP9iwHxRg74wx9+a0lx7OKrVmah+mrftP3F772pdnQ0c+uurRx5vZsTJ1/nsfs2s7Gznt/782f4o8++n1fO9XHq3AhlZX5qa2u5a/sKVrVXotl5CtkC09Eiw7MJRqeiTCykiSaT5PI57JKNYzs4UoIARVXRVA1D1wn4vQQDXuqrAzSFPLQ3lVMR9pItOEzGLJ568TWu9o2yZ3MbbkXh6MUxHAkfe3gXNX6Hv/zuy6xf2crm9ka6/vYQQhZ59I5N9tbVS9Tqtqb5lTv27Gxs2z3w8wp2fubRaVdXl7Jv337nmWeeKc+Ovf68nZyrvnRlxH76WL8azeQJ+xSWVTi4tzTQWVPGi6cvUVNdzhf+8KO8+mY/J86NsGb1GraurmXX2kaUUor5+Qjdo3Eu909wbXyOaCxBybFQEWiaiqarqIqKqglUBAJwpINVylMsZIjFIww5Due7VbxuD7U1VSxrrGD10jDtDeV87pd38PrlZp491cPsQgLTUNAVqHAL/vqp04wuZNB6h0gl0uzcupGGSg9fe+YFVUHYmxWlUveefUHKiVuEEBNdXV3Kz7ru+jMF8XoNVByTUol98Q9+oOViy/oGZ+3vHOlXLd1FTY2bU+cHWbO8hYWFFHu2NLNlbSuXr03yzede43TvNHfv3sze21YTdFvMRhK8dnmS1y6MMjozi2UVMQ0Dn9+Dqt6ASyIBKRd/vh7+owJCUd5yPVJKHNuiWCwyNDLM8OgYb3SX0dlax6aOajavbGDN8iYuT6Q5+mo3V3uvksimuHvXehSXi2dfeoPJpOQjt7QwPjaB7i7ja4fPqy6Py/J4jdaT33vyO1LKmw4ePCjk9bfxzzLF2A3afY9/3r63SfxZwEq9f2hgovTVH72pBaur+NQH7qAqFOLk+atUl3m4a9dqvv3cGfqHp7ncO8TIXJ6P772Z+29ahp3PcPLsBN9+4TLH37hKOpPG4zbxeLzouokQIOUiMIvfuf47SalkoajXwZPy+t8sPoQiMAwTl8uFrqlksxmGJ+foGY0yNRenOqizrq2K5e3N9I/OcaHnGrdtWUkkmaGysp5ffXAj0fk5vvjsmzxw5w4qg26eO/q60t5YXfKbaks0Oqzf89CHj+ze/bOt7Kg/y0Dmvscftw/+7X+4Uy1EPh+ZnrW+88IFfS7v8Mu3rmFsdJTGajezcZtr4/Osbqnk8Ok+Lo3O4w0E+Oxjt7O5o5KRwSm+9fwlfvTaFeKJBH6vG9PtRggFKeVbW7sQP/2QUqJrOktam8ik09i2gxDiH0YE10FXFBXdMNB1jXwuy/DEApf6JrFLBVYuq6BjSQ3nuid46th50ukMH7h9Jc+/fIF4Jsfe99xEW5WbN68MMREtMjk3q7TVhG1NcW75vd//3PFtN//G8IEDe9WDB3t+Jtao/KzcKAcP8uMf/ziQT858oRCPyrPd48orV8a4bWMbfr+PF84M4jJMPrnvVj79kQcYH5+lYDtsX7+S3/7w7Syvd/PymT7+43dO8Wr3IC5DI1AWQFE1HGfxQ72IyT++LoqqkMmkuXVtPWGfF8v5aRCFEAipgBQ/ca+Og6IoeL0+/D4viUyBv/vhaf7mG0cIeXX+za/ey8ZVS4nFU3z9uVd4+shFLAdMO8Gf/d0hFN3k9z92N72jEfHCaz1KbGZGjg1c/JaUseDeKyuklFL8s7HElStXqvv277cf3rX8P3tE6s6ha9P2d49eUR3N4MrAKCG/m9/8wK1c7p/n9e4BhJXnmROX8Jb5+eTeHdT6FZ49epEvP3uWomVTVuZHUfW3LO8fWNT1nW7RChfBdRxwrDwfeGgL41NxxmZiGJqKvA6+EDfwF2/F6G9/XVUV6IaBoat0D0wyODLFjg3tbO5soGdwltd7RvnAPRvZ1N7MXz91ml07VnPPllZ+8NIbWJqfgdFJUV8etBsrA8G5uTGl5RO/e/iJlSvV/Qff+YqO+s670b3qvn377W9//b9uJT31hVIm6Tx95KpaMMrExjWryeWLnHyzh6mZCJtWNHN5aIofnbqKy2XyW4/upiGk8/2XLvGt5y9gugy8Pi9SCoT4pzKkn1hSrlBYdK0oJBNpljeHec+e9SQiWS5em7m+NyoUSxZSgqoq/6Ql33BUuq7j8ZgMDM9wbWSS7Rva2LpuKb2DUwyMzbCQzvPw3ZtwywKfP/Aq5RXlfPyXdnLuygi9Q5Ni9ZIaR3GcTf/+d/7tgap737sgZZeyf/8J+a4GccWKveLEyZflfbuWf8dlpZovXB6V33npgvL+uzdzz87lLGuoYPPqpUjdh6EKkvE4qTw8/q/uoKPJxw9fuMQ3D5/H5/PgcruvA/hWTPmPWJ7AcRz8Xh8P3n27taKzQ1m7ckV288YNYmmDXyn36ii6TmvHKnZs2pjpWNpqbN24knQ6xfxCHFX9yRIIef2VxY19dnG/VDUdr9fNwMgkc3MJdm1YTkt9BS+81kvYb+A2NI6fG+PRe7exsbOGZ4+8zsx8lplISriEIzuaa4yklWn9zg+Of2flikrlnd4b1Xc6mHn88cedr/35H+4ynfgTqXjc+d6xPnUunSWyEKWzuZz+4VmWN5WxpCbE0OQC33nxLI/ctZW7drZw8kQ3X/nxeVw+Dy6XGyn/qXrET4C94UJjCxHqyxTlgVuWsbzeozaU60rArYt0NofHrdFc5aI+hNZWo4tUdJpXzvSQKdromno9ml206r9/yxv3UVUVr9dD3+AYqXSWu25ai9dl8OzxC6iazm98cA/nuwf44lMnGJpJoxkGQtUYn55TltaFHX/As/wzn/3Us/c88EdT73SQ8w7niQcB0I3s50zF4dWrk87gXEZpaFjC+NQEf/fMy/zrj93Hle5Bvnv0KqlilrXL6rl311L6rw7zjcOX0UwTj9uD48h/xPpuuE4HUJDSwbIc3B4/7jLBtw+9zOuXrvLRfXuUlrpysnkbIcG2HfKZJIlsQfnxyz0cPTdIMFSFP+AjnYqjKQolx0ZVVRTxT8d6pumiorqK51++wNLGCvZsW8Ol/kmuXBtmYnyS81enyUmNgN9HKBhk8/qV/PDQS5y+OOA0NVYrsxP9nwM++K7dE7u6upTHH/+88/Wv/2Wrkp39i3wsqfzgeJ8SqqkVH3/vLor5Ii+fHyCZTLJ93XIuXpshny/x+C/tJuhT+dKB1xhZSFMWDLwNQPGWhbwt8kU33I6qqpiGW9x56x723rODle0NTM1GGZuOcvSVHpa31NJUGyafLaGaKtKR/O3BVzh+cZDVy9t4/MMPsWvLGnTVw+xChJqqWpCCQrFw/Z7y73mBxeemYeJI6OkbZvOaNla21nDk1R4KxRK7tqwgY3m5ZftK7t65nJUtZQyNTdF9bUqsaq7G73Ev/91/95mv3/Ge/fGuri7lxIl3Zm98x1KM3ddfS8SnHg2bwhgamrEHp2Li1g01ROfG6b02wu271rN+TScvvdJLNpVi+7olrO6o46VT/XSPx6kIlf10CiDevoCLD1UzefThO0rvu++O0p6btvHgzTUsry2w1JOmmMtRXl6Opil4PAYul4bLFBiArqp4fD78fj9j48O47Bmq3FHu2lrH5vUb+eQH7+Tem1ZglZx/IohS3nKt4XCIRF7yzWdPUF8b4qHd6zn6xgDRVJ6P3rOGNbUuJsZG+duvH+LmtUtJ5SzRfW3Cdop5c7y/90NvX693F4hP7Le7uo5p0im+P5/Ncu7quJLIJanwujh8doS4o3O+u5+OGh9zyQzRQoE7t7czODjDsyevoKkK+WKRQqFwPQW4vkdd36QURcGyHPy6xY52t2kW5wy/EkPYWTLJDEde6yWWLVAslmhtqmLD6iYWpiMcfmOM833T+EydLSsacBkGM5EU3z92gXyuhFu1cBenicdG2Lm2mrqwD9sBgfJTAZQiBIVCgUKxhOn2smrNGnpH45y9NMzO7R2Ey/30Xe1namqcP/7vz2KqGhPzSTLFArWVAc73TSqpdJZEMv7YsWPHXHv277ffKQLiHdkTZVeXIsR+50v/+fAGt+6snBuLyaHZtCI0nR+duMiHHtjJQtHFxNQsuXyW6ZkFbtrYQXtTFQeeP89Nd9yB19CLiWTGmV2IuIaHh5DSRtf1n7pPdCHCzWtXgqHgNgWqJrk2NM8bF4c58vowXreLSCTB3h2rmB2Z5ovPXGA8lsR2JL2D49y9s5OqgJtCLsSRU93ompt1y+qprw4gpIKCQltzmMHT/YQCPpACoQgcx6bkSFavWWtvWN3hVAW9us/rYmR4hMnhXlrqK7h9YycvnL7KzVssvG6d1y4PEw6X8b2XuilZEMkklanZmNNZHm6buvbarcCP36mOuXcExOOLFu0YammvzyW5NL5gR/O21lBby5neCZL5k+xc30J9RTlHz00QCFeysaOeM1dGKC/zUdsYwCoWNVFdgbK6ldjWDRw5eZrJyQk0XcOxbdw+H42NSxyP26Pk8wWqqgJk8yVyuRIb1q3iykiU6WgSr6njKG7+7DuvMz4bQVMXnc2RM32ULPC5TArFIqva23jw7h3Mjk9SXlGFpjpksln8AT87tm2jr7cH23GQUqLpJr98/72sagqJTGRcLaYXKGQFtT4ItjcyOZ+ktbmafRXVxDJFmupreePKBJoGmq7h8XiJp1P0j4w7HW0NImcn7gN+XHnlinjXBDZfPX5cwhNKyHjuTzW7VHPy7JAcjuUVXVEwDJN4xqZ/LMZkJENdeZiNqxrweFSCAS8tjRXosoDfowm36QgnF0ctZVna0sLYbIRsNotlO9RXlfGbH7lPXrjcJ1Z21KMr4PO7aaoJMDs+zok3B5CKBorCpeFZsvkiXq8Hw+VC1wwMVWVsJkYkk8XtMhkZG8Nv2mxe14aCxOXSmF+IMzgc4bEHtnCxZ5h4poBt2dy6fQvrGj1EIsPC6zeFy2WgKQJVEbhNnYDfhd9nEjAFAoHH7aa1qZ5gqBxHqGRyOfKFPNiSDR1NSiZfCDR+4Ne+8Juf+5z9rnCnXV1dihDC+es/+XcdqmB1KpmSQ1NRVUiBvyzE8tZmaiq8KE6OgCmoCrrwuF2YLgVVEZQcG6EZCCnRFYXqqjD5QoGRkQmW1QaIJ5MkkzGW17uo82WVKp+L7suj6O6AzGWzom90hqOnexCKht+voOoGhu2gKjqSt7EVLjeGa5ETQoDp8fCFJ19hYLLA2o5G3C6TeGSOlgYfohhnw/JqRmbjuFSB154nkxdUhANYNuRLRUpFC0VZ3C/ldSj8PhO3qVJeZlKyIFcqw1q9jMm5KNfGphkdHFTmImnpDfiXBa9ebD/W1dXnr6sTG3/t16z/nZbH/2UQJQi6usRXWzC6urqK6dTsprpaUx2ftqxAZaN224Y66sIevDKLadj4vH48hoqqqyhIFKmiahqKlNiWjVWSSAG5QgFN06hvrGBuPknQ52Z6YoKa8hDJbIkd29qZiRZR3GHH6zcVV6ha6P46+obGiETmcawiqqohxWIBzpFysbwmBFI616kpnY6ONc72TeuUpU1+tNwCmSJUh9wEfSY5yyHgcZHOZAlVuKgI+wiFysjnSkgJtuMssh6aSsm2KDkWuqJiOw6qZuBSbDTVxmVIEtkFmoKC+vKlzC+pp1DM2eWmoYmss33P/v1XAPj4xwHEgQN7lcrK3xC7/8F2dfytHGD37nnJE1ekeBvRLP4B+8AT4vjxt0Wtxxfj4bc/P85+Z/9+foof+6s//q1vlOvpR3uH561Y3qUFPA4uFcIBL6ZLQziLNa2S45AtFMllLRaiCVymTnmZj7q6SkqlEvb1pFtVBFevjnJ5PMcbPcNs66zg0Yd2kszkCATcBFwqJ98YRDHcrG5rJGGbXOqZ5HL/JFMzk2SzKXRVR1EVpIRSqYjhctPU2Eznknp2bFpit4RRz5zrZ3A8xra1DQgpKVngMhSePHSBhBK2tPysevO6ZlHfUEkxb2HZDooChUKRyz3jpHMFJFBTWY5LBaGr+HxuvIZAE6CqOplcgUyugBQK+ZItdSSeYMXU2vVrvnLTTduP+Bs3d6uaFnHs/znveqPxTNyILg/29Ii3a//+B+gmI9Z7ZPnIxMSeqYmxu8aHxu8cmphWHaSoC/ko87kxTBNYrJjEkhkS6Rz5YhFbCnLZIpFoCpfbRU3Yj2ZqrF3VglWysZ0SAa+fixcHGFkosPOmXXzpK9/l/ls6WdJcQSZX5ErfGD96ZRBLCm5a38zGzlpqayrJlDxMRXOc6xmlf3CURDyKx+tjSUszG1cto7PZT8BdIDq3QHffPCcujTEyPcu6JTXcsrWT8qCHnv5x5pI6H3x4V+npZw6pbUtrlKa6MMWChaJrZLNZTpzoZv26dhwkc7MxpKbjd2vg2BQcBVkoIYRDWcCH3+9CxUFKlVy+gOU4FPIWUtXweL2EKsMLVVWhvlCZb6iionLIcGlomobjgC1LUpGKoZpGpDIUiJjeQFIr33jBNM3hYrG4aIlv7wGRUvop9NZNXh1cW3RS5sJcBCeVRDPcLlRfTS6bomTbtelUcnkmnWlJRKNLHMcmkc1RLFlUV4QxVImmq9hSkohlWIhlKDo2LreJoWvkCnkKmRLpfIGKcIiO1lrmEgkuXhpm7aoWlrTWkUwk8Hk99FweZiqe5N7bNtM/vMDU1ASmK4Dh8fDUodeZnItgmBqKqlEdDLFsSYhbNrazfGktxbzC4KxNSvHgUW1qPEVCPsnszDRvXJngYn+M4ek5CvkM+XwBt8vgNx69l0Q0htulsqS5FlOzOX9xBK/PTeeyJrK5PF6/hzNnuhGKjtvrIeDVCPgDjE9GiCczeL0GLl3FUHUUVZDOl8gXSuhCoKkK/oALt64iFCHzJceejyTUfM4SiqrgdbtwedyLbIsKjiORzqLVW46C1+XC9Bp4fEZh5ar23uWd7Z9vXHH/FwVA9wvfXDcfGfnc9Hx0d2QuWottKUIIsrkCslhCd5kIRVCyLAQKQqhYsoBVKuE1TMvndwlFE2qpUCSVtllIZ8nnbTymTrjMh6IJcoUisXSeXCqHquu0tdbg1aF/cIZQhZ98rsTsQpZ77lhLKplF1wTnLw5QtGHrxnaKhSK6qaPpBiYluv7qEPMZC7epkS8UsByLxEKc23euRdUEN29eRltzFYYnQDqdJJVMc+jEJSg59I3FGV2I4TV1TMPAkg6JaIQ/+uRDVFcGsa7XZ3Xd4KXjb+Jyu9m0rp1cPo+mqJw5149umlRXBchnc9iWoKWpmkwmx+h0FEeCKm1cLg2/242iqghVIZcvEk9nsW0Ll6bjL/Ph1lScYlHa2I5VkrJQLGGVbEolG6kIUFUsW1IqFMnn8iAUkbdKqmVLtm9fx8q1q/+D+qOv/PEjV15/+dCli73r5+cWArlMWsSTSVsWLUdzLMdBOhLpFPIlRwjhBHym4/Vo0jAUDE0nlc+rs5GMMjUZZTaRo+BIXJqGjgK6JF8oMRdJE0sW0RRoqa+kuamC+dkEwzMRgiEvkUiWysoKLCtPZbiMYqmAIyXRaJrLfZM01VXi9ZqULElV2MuJV65y8uIIHo8JQkEzdEzDpFjMk8tnaG6spb6unGCZm0wqSSFfwLZVUhmLQtHm2vQiQWy63EgkmqqRyuaYn4uwY0Mblu2gqwqjE1EOn+6juiJAyOfFdmws22FqLsbaFUuJLSRwbIHbpXFtbB4USXNdBZqukCs4WCWbTK5AKlukWCqiGRpu43osKRRyhRLReIZ4Ni9SyZKSyhYUCxRHoiiaUDRDVxRFUQxNVYQiFJfbVLxeQ/F53dKtGc7V/mEs29qkblnd+PLYyLg/FC4rhQMuxa1raJqmqJqqGLqmGLqiGKahOALFASWfLylTcwllZj4hkqm8yOdL6IqC32PgC3hRNMjlihSvF7ELRQuXoVEecNPWWo3bpXPl6iS6oRAMuEmmcqxbtRRNE5zvHqB9aT22dDANnVw6z7n+Gc50D9HaUE046OFC9zivXJ4imS9dD1w0SiULTTepqqyho7Waxx7YRpnPoH9ghhfPTjAwNE9jTRnLltVSEfSTyqvYwiCdSSCEQFVUdE2hLFzJ7EKO6rCPgdFZ/vbpUySSSZY2VVNdGcTncaNqGtcGp7BLJVZ01COEYGw6QigUQLEdFuZSVIR8VFX4UVQVRdPI5Iqouo6uaRRKEikE0nZQAJdpoqkqllxsDcnmSxRKFtmcRSxdIJ8rUixapPNFLEvi2A7JbF5EU1lFWiWnqb7SVDeuaP7T2NyCrRuali86Ipe3Rb5gEU1miafzpDIlZiJJ5lM58oUSuaKNVHQWfYaGJSWFUpF0ofQWqapoKrZtYzuSirCP9tZ6PG6FwYk5ZudSBPxuFsFX2bB2GXPTEQbHZ9E1jcpwENPUKBYspqYi9IzMcXFwklIhjWqrDM7ZPHLnWs5cHMBCUCoVqa6u5b5bt3PvnrWsbQuTTecZHJ7le4cvcu7qML2Dozh2icqgl6pyN1vXLqWlsY6iBZF4hkIxhywW+fRjtzEfyzM+NcN8LEP/ZBqv16ShwkttTRhFSKLpDFPzcWqrAlwbnKWqqoyq6gpSyQyWU8Ll1pmJpkkk05R5XTTWlWMaKiVLUsgXyedzeD0mAbeOx22gXu/Ek9JBESpWyQIBuq6BIxEKqCqgquSyefK5koymsk46k7Z3rm/Xahpa/0bdvXXVNo+ptJ84O2BFUzbZTE4UbYlq6ORL9qJPlgqqYyMUFUeoKDiYLgO/V6W6KkRlyI2maRRLNqWSQz6Xx2PqtLVWUx70MTod5drEAmVeD6apMhNL09Zaw4pltVy6PEQ8laOprpzuK2PU1lYS8LpAwNxCnHBlPWs726jw+2ms9bOus4bqMo0LfTPMxrKsXbWWDz2wi2U1NpRixGIpjpwdJ1OSTM3GSOfzSAlN5QHiWY3ZSIbaCjeGlmHVsjrKQ1XEspJcMsaOdS20N4bxuxR8ZRXcumMzq5bXE5mZp646hM/rJpHIEI1n8bhdtDXXcrV3lEKhwPKldeiGyexsEpehYOgaMwtJ4ok0XrdJZZmP8rAfkGQKNplsnmQmR6FkoSsauqYRKnPjcWuYmo7bpeE2VEoli1yhRD5dcMIhv+3zudSWmqCyZ/tqNVRd9/Sqf/MnvyIOH36mfObKqS/7dPvBiYk5YtGkLJWK9sDYvKJrbsVvKPh8LvxeL5qp4TYNisUiWRyymQL5vIOqgqbp+L06ZV4Dx7Lw+7xk8zbjswmEKvB5DbLJHC7TRXNzNY6T43LvJOFgCK/PYHRsjuoKH44lWNZWh207vHa6G93vY8+mTmKpAi6PQEgwFfir77zKyg2bWdsawGNk8ZsaF69O8OyJAeYSaVKJee7YshrLW0eFW7IwN8mpS6N4/V68muSxh7bRUleNdCwcs4G//tpT3La+nqaGKlLZDKqmE/Z5OHf+GuNzMbZtXIbL5eLa4BS+gAtV05mbjbKqs4WB4VliiRRrVrRgmhrDY7MkElkCfg+GphFJpnG7DKrLA3hcLmzbQjo2haJFKp0jnc3joCCQ2EWJxEEqkmy2KMs8plO0LVERLlNKmFRUB/Nhv/9Vt9fzzV96/I+/gnTQ7rjjvRGhaA+9/P2/fqSipu6zhWR6x8DghObSdRam5h2ytkzatijYtqJoCral4AgFXYWyoJfyMg23qRIq81HI5YklkuQsjYVEHKFAXUUZ87E48XiGzrZGystcDI7OMTIRZeWKRvLZDGPDc+zYupxcPk9f/wyKCrph4PYYvPJGH6uX1hEoc1GybNyaxtDYNIbhojkscYsUVt7m3JVRvvC90+QlmIZG3tI43T3CH3xqO71DE3zv4hiW7ZBJpZhKpfivf/scn/2VB2moCWCnBumsCTA5F2fJkhr8woOhShLpDIfP9rKytQ6vy4WqQSqdxuM1aG2pQFMFFy8M0tHZTEXYy4UrQ9RWhVnaUEuhssDIzALpfI7KoA8hFSKRNBGRQtcUNFVF0zR8fjcet44K2FJIu+TIbC4nM3lLVgV9WlVFSPX5A0Tz9hvJuPWNyqbVhx771cevvb1YI65Lrt/qg/jCn/z+jjPdw/d2tIb3bWrxtw0NjdJ9bYxUomCHK4IEfIYwDE2YuhuhKgIhSafzlCQ4jkUylSNU5sfvNckXLDLZPDXVZVRXhIknMoyMzoEKy9rqGR+fJZsusXlDG6qmcuXqCD3DMzxw52YMTdDdM8yTP75AS1MVD9yxAb/bIJfN8swL53nvXVv53guvsWlDG1XBAN84dJlIKoPH4yEU8LOsoZr2xgoGxydQXG68LpOrQ1NEExlKtkUhV6K9zscDt3Ry5uI1tm1ZwQ+PXGRpYwX1NeXMJTKcPHuNy1cHed9tm9i0pgXD0DnxWjegsqy1hvrqIIlMjt6BSfxlHqpDZcxE42QyJYIBDwG/h3w2TzxbIJct4MgSFeEg6VSWouWQy5ecdCbjtDfWCFVxFF3RhGFquN06gYCfnEVuNO58u7mq+clP/H7XYdteFFl1gbLywAFxg8YSb29yev++ffaNKux/+2//zWfaqT1X+/oeXNtWdmdzyNsYjSeIJzPk0wVKpRJSKM7FgVFH1T24DVX1+dyizKOTiKWJZ4rUVwcpr/QSTWTIZEpIFvWEHpfB2OQCwWCA1R2NJBI5rvSN4vO6iCdTLGmqo7o6xOC1cQ6/PsibAxNUVVbjlArcf/MyXLrOus4W+gen+eGpbtrbl9PS2kQpk8TUdHRZYiGW4NzgBCMT86CqLG+pobW2HL/Lje2oNDY2MB2J8Ob5S+xa08TKjhqmZpNk0gV+cGqIlG0xNzNFUBc8ctc2Vi2vIZO3OHtxgM2r2xgamUHTNRrry9E1k/GJBUZm5vF5dMrLQkQyWSZHZwmHvPhCYVKZDImUQ7lfobOpcrGZWUpCgQCJTB5V0/B63UWBnBGqa1h1668WZPBrv/KZ3+l7i2y45RaN3budvy/QEf8Ywbv7+HHlxIkTb2nr/uIvvhHobMzd7Ti595VS8aXZeKY+Es9VpLJZNRR0kUmmicST1FYFmJ9LcmkkSWXYhS4UioU8pUyeqsoQvoCLSDRBPJWns72WqqCfqdk46VwRr0cjGPRz7uIQrU1VtLfVMjUxzxs9k5wfnueWLWspLw9hp2ZZ216Ng0AzVL757EWqqit581IvummiqZBK51hIpHFsB+FYoChIKTANg4Dfi6apxKJRfvnhO3j9XDf3bGunpiKAJW0isRxlFTVIW+VvDz6P6eS5d/d6GurCTC4kuHRlmKUNlbg9bqbm08wvRKitrcLUNTTFYXQ2Q9GRSMehZNkkUjkS6TyOdJiLJbipo5b7dq/l4tAM82nZW1NRfjZZ4JDH4x8JVVVNWw27pvd/ZE/+xtrv3btX3bsXboyH+R9iMa5Xxx0pEQcPHlAOHjzIpz/9r5LAgesPwm13B7YvD1X7XEpNOCQ2pzO51ZHZyHs+0BSutLwqb3b3i5KUqLqOz2VQ6fcwEMniIMhls3z4kS2IksWzR7vx+0zKPCoel59sNsvqFY1EI3EUVaG6KkTdXIxzvQWUQoSHdq5gatZDOp3D73MxOjlPOhHhsQfWUsjM8+KrA6i6hqIITF1FNV0/UUE5DjaQzhRIpZKsbQ1x7/YGpoaG6Lk2QceStSQyNi11Qfw+i1Nv9BKZn2H3+g5CIQ+6oZFMpGhvraWhKsjozAK2VcLnD3PqXD/v2dVJfXU5T794gZTtIG0H27ZxHAeBg66ppBJJ6iuW2aahqcGy0A/GvvzVR/6jEPY/pPdQ4BYFdjv79++3Dx78X6SiFqVY++yfSNQOKnCQ97//oB299nzyR9dIAgPAywDvvef2T+cc/rwq7LXKPZo2nS0hrSKxRI75aAyEQFMUZmam2bymjvt2rqZv5CSecJAtyxpwbBOvbiBxSCTylEol3B6NhqoQ7Q3lPPniWbxekx1rlmCokmKxRDpTQFoSRUh2rF3C5eEUN29bzeTMHG9eHkDTFBxbgiKwpKSjrYk7tq/gS08eoaOtgXw6j8et4y3zEUnkSBds/F6FCxdn+dahCwR0k7YlVfj9JrZjk88WIOBhaC5PQXopaIKjZy5QTMRpqt3OwPg884kELpf5lj5SUQwURQVFECgVqa0MSKEqlIfLvndQCPsvPvUpM3rpkt1TVSVXrFghn9i/X4r9OHDCgRPvHJ94nbC0f8JgIJ54okv09PSIFStQe3qwC+n0K/PRFDWtFUpTVZi5sQVchs4iA+UgpUARCsGyck6/2cfDN69ly+oWnjx2nmg8Q0tjE5XhMkwhsVJZ5uaTNDWWEw77aazw4HIbfOXZM0xEVBqqgoxMTLFtbS0P37GefCaHWzXQnCI7VpRhtbq5NjBKpuSgCIEUgkImw82d5WzpCHEo7MJxHHIlizWdjZgunRPnxwgEahFKiVNv9DM7F6VuWS1ul4Gha4yMzBNL5Bgdz6IoCrPzC0xPT5PJ5NmzcRlVFSG+99IlFNXE6/EuKpQXv1AUhUw2R204QHk4pMaTWSnNqh5ARMPh0v4TP5G97f95kcKLVrr/RgxkSxC7u7ouZGYv9wjJipaGgP368Kwq0ZAOSLEo/7QdG7fHZGB0joHxGbauaeX01WkisThvLpzD5TaRUiCLebxuE6+hoykWLlWlWLBRkdy5owWv20VHkxfLylFeGwSryJVrY1iFFLKYp6rSz03rGnj21DBul0o6k6M+rNPZVkVkPkFjdYjL/RPctWctZUEXpZLDPTuX43Ib+N0uRq51c1UVzMQSTEUy5IoK03MpzgxMMD69gCpAVTS8Xg9SOmxZt4RkJkPP4BS6rlKy7Z+S2SmKQrFYoLEy7Bi6omRtZb7xzvdd4ff+RD6xf///EnDveMviE123qCf277eE2/xqwZG0Vgelx1CQCFRlsVM7XyyC6mL75s3U1NZw4vUelrZUsLq1Fo8vQEU4jKZoCMehJAWv9c1ydTzHyJzkZO8cliNJp3N89/uH0EWK6rBGRdiFsEvohobp9uHz+8BRKRYcltSVowoHFIV8Lkd9dRAHSckqYeg6KzrasEoOKipBnwtDc3CcEk8//zpnukfweT0ksg6vdE9zbjDCy91jzMzF8bncBPxlBMtC2FLQWhNk4+p2Tp8fQqoeWltbCQYrMF1eUHQKJYkjJYqULGmsdGzLlqbp/dGDmzdnD+zdqwr+9xXE71Ab/24HTpCWrqcXEvk/qqsNGc1hD9ciJZAWLk+ALeuXccumpWxsD/EXX57jpdev8uBdKfZsauXy2CzFooXL5cHWbdRSnpn5eb596OR1Vr6A22WiaQqnLs9gfr+bmzYtIVzmYWouwZFXe7h9WwcP7llDJlvA63Nhug0UbMABKbAcianrLKQytLdWEPD7+fLBlzG8Zexa344ji1zon+G1s32UpI3LcGMrNlev9tHbB6qi4jJNdN0ABYQmKCSz3HXXdkrFAodf6WHd8lZ++f5bSCQKKLpBvlTEsRy+9eOTkE/R3FQtbFURQtO/K6WEvXvh/ytq+Xl1u504cUJ2dXUpf/qnfx7dvaXjjpqqYHMymXMuD88rWzes4WOP7OT2dVXMjA7xrR+cYsvqZo6f7UMoCrdt72AhlmdwMoKhiuv6QYGqChyrhEBiGuZbbIOmqkzMx+kemufslTH8oVpWLGujkI3RXB8E6aDocPr8MBevzeB2u7Eti7HJKbasbsPjduPx68zORmltWkpTawuHTl7gxZcvMTQ6SckqXr+fgqapmKaBoevoxiILoSgqqqaTzeXpbCjn/Q/s5Ojpbo6+3otCieWNQXr7r5FORQl7YXp+gZOnr7ChrUau72hULGFGlm576He+9rWv5Q8cPPi/7UrfYaXwcQUgW5TPpDJ5sWZ5o/TqArWwQGZmhK8/+zLJfBGXblLpd1HmcXPoxGVGZqPcvXUp9RVlFOwb/TWLTVQu96I6SlVVFEVBVVV0XUdlkcQd6LvG2maN29e52byuCaFqCAVKRRthBliyZCm5XI6amhq2b91FOlVAVSROQdLSWMXKZX62d7hxkSMZj6EqYOguFKG+pcdYvK+GqqggFBQFHCSqtHn/ezazEE1w7MwA4YoqxmZS/PfvHqeiIkRVRRlf/t5pvvTMKxTyGTauWGJrmiaFon5vz5498QMH3hlX+o4Kao4fH5H79+9n08at46KY+ERVyGcmomlOXB4VF0fjvHZhiJbqIDdtWcJ3X7iE6itHU00Gr41y685OQkEvl/tnFyXXQllUXgiJuDETQwDK4jPlupXkrRKXr47QXF+D12vi0gRu02QuUWDDimZ2bVtHXUMHD9+xjffdvoxkIkVRCgIBE1VAzhJ889mzvHK2D7fHhaZp1yUDi8GIEMpPBSdCURCKIJ8t8r4969iwuoHvPvsKCynJI3duY2RiiplEjr6BMdZ3NqIqKr0jM6xuqmLjigaEaSiuYO1nn/nx8dG9e59QDr5DquF3DMT9+/dzYO9e9TNf/VZy+8bOZSGvvj7o0e3zfTNKJpdHUyW9wwu8eGYY0+Xmtz64k9qQyZPPv0GZ32T3lg4c2+DqyAza4rySRX7yhurzelumQIXrkzE0VSVbdBidyxPPSiIJ6BmO8P1jFznfM0hzFSxvDOASCb5/6FX+7rlzDM/lSBVU+kaSvPjqAG/2DOJgo6vadaBu6C+URdn4DVGdogAOjiO4fesq7r65g9cvDHHw8EXu2dmOZWdBumisDNIzFqF/ZJIyv5fp6Rj37Vphl1f4lCL6Bf/n/tMfrGC/ePzxg+/YNI13VJ94ZcUKCWBp/v8yNZ/8cENNUNnUXsGpgSh+jwu3y8eutbXcsq6RIycusbSpnD3bOvnWc2dY1lDB3btbiaUznDzXh6FrSKFi2TZCgIKyKHkTP1lUXdcQQjI2PsHE9AwAJctm/ZpVbOhowGeYpGNRbAVq62rYst7Nq+d6OHexG8MwwFlMBQzDQIjrvanXPy9COEipoIhFPYbERkqFO/fczN1b65ibm+FbPzpDS2OYdR1NPHW0l1s3NHH09V5u27GeTDLKkdMDbGmvoq42iKrqwigL/9/7hLC7uro0eOcGFL2jSuETJ07IvXv3qv/9y9+Z2bF5xWqfS66sDYXsnsF5BaHw2x/eTU3QxdR0jCuDM2iGQmdTOS+8OsDI5DzbVjeycVUT0ZRkdHIeRVl0rYtJ8+KQISHFdd2iAtfzNdMwURSV2roGPvqBR3j/nSvobDSIpS0On48wGcmyekmQ7avq2bphE6a/ktm5BVRNWQxWrrvLG8XkG64UsagQdqSFIxXuv+s93LWpnkRsmq89/SoDU3EM1aG6opK7b1rDxMQsF8ZSPLC1hen5KNFEigdv6XSqKgNKSZgDKz/w/s82BBqcd3rC1Duu2d+7d684ceI4d91zy9lsNPGr5SG/5jV1cfpyvzA0haePXKWhysOtuzqpCQf57qE3WdreSSJT5M3zfWxZ08SGjgaEEWR0KkqpmEfXjcV2fPm2yRfiul5RUShZNu1LGvk3v/ogSytypGNzvNo9zzMvXeVSbx+jE/MMT6bAKlAfctiybimVoTAXe4aRyMX6qqJc7+RT3pLWqapGySqh6W72Pfwwt64JkoyM8Y1n32B4Ns2vf/B+LEvy4muXyWZSNDdWcOeudVy+MshzL1/h3u0rWLmsxrEdoZj+mo888J4PX/nkJ6uUgwd73t0gnjhxQh44sFf9xONfi968Y73tMaw7q8M+ezaWUl54fYi2ei+3bVvGF586y+Ezw6RyJT796DY2ddZw8HA3/UMzbFheyfrVTTQ0dTA8sUA8voCpm9eD6UU9hUAsAiAE+WKJfHyWu7fXE81Y/ODlUV58uZuJ6UnymQy5bJpIPMXIQoFYVlLjt4ksLPDqhSEUVaAo10eKicUmJkWoCFWlkMtRUVnHRz/4CJuXqERmRzl49DKXrs3ywbs2gpWgoT7I+Ngcb1ydYnImiuYUeOH0FarDfm7fvMQ2DF21hevQJ/7gr7rePqz+XT/H5uDBHvbu3au+79HvvjbYc/BBvynq2hpq7KtjEcXvNklE0xw5N0iZR+Xff/w2Ll0dYz6e4eGbOvj+iR66r03S3hCgo9HH2nUbSRYEo+OjgEQ3zMXxXm8XYUuH2ViSVNHgQt88r7x5hVw2uaiX0E1UTcdxLLKZFJPzCWaiNm9cGiaeTGEaLhRFgKKgCAVVUbBtC8tx2LxpK7/6gffQ4I8zMjbC9w9f5YenLnPfzk6WNVXyV98+wYrWKpY0NaCbLlLZAmf7JyhaFo/cslb6TaTQPflAzYoHvv/84fiKFXt5pyTeP3MQAVauXKn89m/vsx94z+4zmVjso8EyF+GASxx9Y0gMzaZob6rg19+7nWSmgMs0OXSiB5fHRcGSzKctTr95jaqwQVNYYdvaddS1tjO7EGd+fg6ERDMWc8cbM9t0TWd4fJ6x8UlUIVA1YzElEKCIxfIfCAq5HBPTc2TzeUzTRNUNFKGiqgqWbZEvFaita+SX3vcQD92yArMwRHfvOH0jKWZSRZpqq+kdGiMcDnHPjnak6kLVDda2lRNP5IllS9y/tYPWOp8VCPo1f2XD737ot7p+3NXVpe1fVAfzzwbEnp4e2dXVpf1O159N3v/g3aYoZHbXhEwrGAipl4dnWbckzIblzfzhl47g95ksqy/nC99/nTWtlfzOx+6gezjCi6/0oauCqrISHfVlbN26jXBFPTORONFYHMe20LTFCoqm6WgKGKaOpmmoqoKmauiqino9fVBVFcMwMHUdwzTRTRPpSErFIpbtUFvXyL1338W++25mWWWR+MwApy6Mc+jVIWbnZth7zw5aqzwcPztI79AEjfVhdEXjhy93c653hp6hKfasb2PHynpLUaWOO3zgY//2L/5117+/Wdu//2s/swG2P9OhtTeOC9q794D6pT/59ItqeuEWRVWtY2+OaE8efpNH71zNirZ6Pv/066SKFmFT8BuPbKd3JsPmznqeefEiJy9PsHZ5BffetJLW2jKqappJiQrO9U9x5uwFBq5dI51KXa+uLEaTi8GJumiF13MGRy7OPJWOg2Pb2FIiFJWysiDLlixlw/pVrF1WT1CJkYpNcGVkhpfPTdI7tMDMwiwfuXcrwTIfr16eYmlDBc+/cpZ4osCvvHcno9NzvHZlgU1tlexe32i7PYaquPyXVq370K7DD+3KPLHYyCT/WYJ4A0ghBAcOHA5E+w68ZJYSG/MZx3rh9KD24vlrfPDOjbx2aYSZaJLfefRmamoDPHW0n3SmSDqbpWNpI7ORFL0j82xeWc/mFRW01oUJVlRjumoYi9oMTMwyNDLF6MQY0WiMXD6PbVlYlgVSvpUy6KaB1+MlHCqnob6atuYm2lqqqPECxRjJxDxjMxEuDi1w5vwYyXQJSxSJR6PcvbWD9avb0f1lzI0P86NXhxCoxBILaLqbzatbuXNTq+NYBcVTFoqHl63d+dC+X+/5WQUzP1cQF5uwFv+R5577m/qZ7osviHR8pSwUrOfPDGsne+fJZFN85r3bCIY8nOxZYEOLny9970003eGzH9yDx+NlKpLiyefPYaGxrM7PyuXVtNYGqK8ppywQRpghLGGSykkS6RLZXIFcsYTlOCgouF06LlPF53IR8GqYMoNlpUnGFojH00zOJukbj3JtPM7YbBRNFvnUB+7kpdO9nBsYJxWP8th7trCkqYZvv3SVu7d1EI/Mc/TqDFvamli/NGB7TE11lwXjoboV97/3Y7916ud1FNHPbZC77OpSxP79zteffrqq2PfCETUbX21ZWH1zJe3pIxfoaA4yvZBhOprBNFQW5iP8xsNbqa2t5PC5OdYuD/Hq6W6GoxYNlWEKxRK6Lmit9VEd9lBb5aayzIvP48Lr82EablRNR1UXWXUFSb642DqYzGWIxrJEUzZj00kmZxNEUlkSqQy2tTiGxRSSzz16K6ph8OyJy1wZiWAVs3zkwZtY3d5C7+AIL50f5bbtm6j3l2xBUfUGy+Ouqsb7P/jxPzh1PZD5lzPI/S2L3LtX3XfwoH3gwIFwafLV58lGNluFYulSf0w/cKKXvF1EcUoUS5L2+gD77tpENCdpqPLzxSdPMjid4Dcfu52O5grGxmd48tAbxLIqlcEyVE0BFcJeA9Oj43FpBDwmlmWjCIV80SZnOcTiGZKZHNIRzMeS1FeFURXoHRq9zlAoKIognUiw77b12BhsbKvixbP9nOyeoNIlWbeyjfE43LqhjQBJy+0VWnllfdxf03b/ez/2uVPHurq0Pft/fmdj/FxPqDnY0yOl7FJWrXo8+5l/92dP5bIzKwzF6fRpBbuzsZxMSRVFYZJJpHj0vg2ousEzR/sYn5xjfDpKe1MZ21c38nc/uIAqLJqq/MxE43x873aaqv3Uhr1cGZohV5BMTke5dG2aYknhfP8khZIk7PdRE/QQiacYn15gPrLAHZubue+W5VwZjmPZyluDh1KZHEsawqzvaGEmlWVFSw1OvsBkTuBy+7m5s5qwni2Fw2W6O1Q5aASW3f3+T3zubFdXl/aR/T/fw01+7scM7d+/SCB/6EMfyh149uUnx8YHwqoit3lMW3TWh62mxiXKVDxN98AEjTVB9qxr4FzvOD0jszx4y0ouXJ3i+Lkh5uM5MpZKJJ1ndHSK9ctrKUqF3msTbO2oQMFmcibCB+9ay6lzA+xZVc3KtioKxRxbOuvoG4+SK9q0VnnJ50s01VXSPTiLpi2O3swXSlT6TcI+gwPH+xmYiCE0F/fetotdy0JStVN2MBzS3eU1Z3Tf8vsf/dRv9f88XegvFMQbpTl5fRLtsqdePPTYYx+6bLjUm12GLPORtpdWhVlIOOLoxREiqRzJRIrp+SQb2mvwl9fQtnQp1W6HN/vGiMdTVPh1/B6Tb77Qw0IsyfKmIBOzGfKlIkur3Jy+PE5V0EUinuPitVla6vxc7J0glsqxYWkVtuKlozVMvlhgfCaNaWhYJQu7VEA1DKYWcjTWVLCxrYoqNW1LWVAqa+sUPVT1tcHwfe/79MffH7k+JvQXcp6iwi/oEkJIAfLAgb3qfb/8yWcsc9NGs7LtO2XVdWpdja48cnO99aFbVkirZGCZFQRCAV4628fqliD3ba6mLKCiKAJdUWmrryCWyJBKxMnnM2iKSiqTW+z+1lQsx2YhmWHNymb+1QObGV9IEMtKXLpAUR3qqvxc7J9jx/I6GkIecoUiHp8HywwRy5m8//aN3LW23qn2Oo7H71LdVTVJEaj/lcc+82cf3v+RPfnFsz9+cQdi/sKO3rtx7dt30D5w4ID6yL5HpoEPHHr6G9/1m6E/DITm1/o9c7Q2BqyiVqlcGmhVjp6+yN8cfB3DVBidjlyPyhyqKn30j8ZQDR1ZKCFxWL9mBYVMmlKuhC0VLFsyH0tx9PAQD+9ezuoleS72D+Nxe/jhiR7Gomlqghq21FnRsZJ1nS3Ul5ko2RlHOjnp9vpVzVWN8Ie+p4aX/c5jH/31gb1796oHDhx0hPjFHhr9bjjJlIMHD0oppVi5skd9aO8f99718N99NVCZyigu1zKfKcNOekqUu0vOitYqx+f1iUzOEpU1tZgeH9lcjmLRYmwuSd4qUczlEMLi7pvXsaQ+zKmzvYzOxTA0WNZQxeGzA+RyRYJlHgYmZkkWFFJ5m3CojMpwOZ0t1dy8pknWeotOITktDLeuuANBxQxVn/bWLP31Dz2+/49+8IMfRbu6urTPf/7z9v79v/j1e9ed7v32BPn06f5Afvb4r2fnxz9aykfbc9k02USGQt6xhDtEUZrK0MS8uHJtUqCbOEKQzmQYHRunqiIEwEIshcdjUiyUcOnm9aGzNi5TZ9WKdihkCPsMWRkwpVeTjiOKolTKq16vD08gjDACp3AH/+JDn/y9Z4QQTldXl3K9HeVdc2T7u/KIdv7eKd8/7pem59p33mNnZz+ais/drpeyrmQiST6TwZEKDqqU6I6FAUITU7MRkUplRda28bndtDYtIZ1LMzc1Rl1VpcTOIISQbrcmsQoCRSq628Tr9mJ6fEjFNWO4Az9UvRVfv/8Dn3gZ6fxU5eldt1i8iy8ppTj+xBPq2xPn1157cZkdn9yZScZvlnZuay6TbKZU8iILZBJJCtkcmmZQskrYtrMoIyg5qC4N1VCxLAeXrqEaCprpQzPdaLo7JzR3j6Z6zvpCwWO1HbsOtbe3J2+s0YEDe5V3I3j/LEDkJ8SvOHjggAIHf0qnJ6XU3jx6qLlQiq1WteKaUq60pphPLy8UshVWsVAmpHSzyPcuDowoOkVhqlGh6kVDc42i6q/aiuucy6y4cPN97+u/YXE3rA728m45hv3/7fp/APLp4zmFKIHFAAAAAElFTkSuQmCC" alt="Prefectura Aérea"/></div>
+    <div class="title-wrap">
+      <h1>CARABINEROS DE CHILE</h1>
+      <p>SECCIÓN AÉREA TALCA · PLANIFICADOR MISIÓN H135 T3H</p>
+    </div>
+  </div>
+  <div class="status-row">
+    <div class="stat-chip"><span class="sv" id="hdr-wpts">0</span>WAYPTS</div>
+    <div class="stat-chip"><span class="sv" id="hdr-dist">0.0</span>NM TOTAL</div>
+    <div class="stat-chip"><span class="sv" id="hdr-fuel">560</span>KG INIT</div>
+    <div class="stat-chip" style="border-color:#1a3d24"><span class="sv" id="hdr-fuel-req" style="color:var(--green)">--</span>KG REQ</div>
+    <div class="stat-chip"><span class="sv" id="hdr-eto">--:--</span>ETO</div>
+    <div id="clock">--:--:--Z</div>
+  </div>
+</div>
+
+<div id="main">
+
+<!-- LEFT PANEL -->
+<div id="lpanel">
+  <div class="tab-bar">
+    <button class="tab-btn on" id="btab-ruta" onclick="showTab('ruta')">RUTA</button>
+    <button class="tab-btn" id="btab-fuel" onclick="showTab('fuel')">FUEL</button>
+    <button class="tab-btn" id="btab-wb" onclick="showTab('wb')">W&amp;B</button>
+    <button class="tab-btn" id="btab-ftl" onclick="showTab('ftl')">FTL</button>
+    <button class="tab-btn" id="btab-norm" onclick="showTab('norm')">NORM</button>
+  </div>
+
+  <!-- RUTA -->
+  <div class="tab-content on" id="truta">
+    <div class="sect">
+      <div class="sect-title">⊕ AGREGAR WAYPOINT</div>
+      <div style="text-align:center;font-size:11px;color:var(--muted);margin:2px 0 6px 0">Formato de coordenadas:</div>
+      <div style="display:flex;gap:4px;margin-bottom:4px">
+        <button class="btn-sm" id="fmt-dd" onclick="setFmt('DD')" style="flex:1;padding:4px;font-size:9px;background:var(--green);color:#000">DD</button>
+        <button class="btn-sm" id="fmt-dms" onclick="setFmt('DMS')" style="flex:1;padding:4px;font-size:9px">DMS</button>
+        <button class="btn-sm" id="fmt-ddm" onclick="setFmt('DDM')" style="flex:1;padding:4px;font-size:9px">DDM</button>
+      </div>
+      <div id="coord-dd" style="display:block">
+        <div class="row2">
+          <div><label>LAT (°S neg.)</label><input type="text" id="wp-lat-dd" placeholder="-35.3567" oninput="previewCoord()"></div>
+          <div><label>LON (°W neg.)</label><input type="text" id="wp-lon-dd" placeholder="-71.6019" oninput="previewCoord()"></div>
+        </div>
+      </div>
+      <div id="coord-dms" style="display:none">
+        <label>LAT DMS (ej: 35°21'24"S)</label>
+        <input type="text" id="wp-lat-dms" placeholder="35°21'24&quot;S" oninput="dms2dd()">
+        <label style="margin-top:4px">LON DMS (ej: 71°36'06"W)</label>
+        <input type="text" id="wp-lon-dms" placeholder="71°36'06&quot;W" oninput="dms2dd()">
+      </div>
+      <div id="coord-ddm" style="display:none">
+        <label>LAT DDM (ej: 35°21.40'S)</label>
+        <input type="text" id="wp-lat-ddm" placeholder="35°21.40'S" oninput="ddm2dd()">
+        <label style="margin-top:4px">LON DDM (ej: 71°36.10'W)</label>
+        <input type="text" id="wp-lon-ddm" placeholder="71°36.10'W" oninput="ddm2dd()">
+      </div>
+      <div id="coord-preview" style="font-size:10px;color:var(--cyan);margin:3px 0;min-height:14px"></div>
+      <label>Nombre / Descripción</label>
+      <input type="text" id="wp-name" placeholder="ej: SCTL Talca">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn" onclick="addWaypoint()">+ AGREGAR</button>
+        <button class="btn btn-cyan" onclick="saveWaypoints()" style="width:auto;padding:7px 10px;font-size:9px">💾</button>
+        <button class="btn btn-amber" onclick="loadWaypoints()" style="width:auto;padding:7px 10px;font-size:9px">📂</button>
+        <button class="btn btn-danger" onclick="clearRoute()" style="width:auto;padding:7px 10px">✕</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">También: <span style="color:var(--green2)">clic en mapa</span> para agregar WPT</div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">📍 RUTA ACTIVA</div>
+      <ul class="wplist" id="wp-list"><li style="color:var(--muted);font-size:11px;text-align:center;padding:10px">Sin waypoints</li></ul>
+    </div>
+    <div class="sect">
+      <div class="sect-title">📊 RESUMEN TRAMOS</div>
+      <div id="legs-table"><div style="color:var(--muted);font-size:11px;text-align:center">Añade waypoints para ver tramos</div></div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">✈ RENDIMIENTO OEI — EC135 T3H · IBF · Bleed OFF</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+        <button class="btn btn-amber" onclick="openOEI()" style="font-size:9px;padding:8px 4px">📊 HOIST<br><span style="font-size:8px;opacity:0.8">Área Confinada IGE</span></button>
+        <button class="btn" onclick="openOEIoge()" style="font-size:9px;padding:8px 4px;border-color:var(--cyan);color:var(--cyan)">📈 HOVER OGE<br><span style="font-size:8px;opacity:0.8">Techo OEI OGE</span></button>
+      </div>
+      <div id="oei-quick" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- FUEL -->
+  <div class="tab-content" id="tfuel">
+    <div class="sect">
+      <div class="sect-title">⛽ CONFIGURACIÓN H135 T3H</div>
+      <div class="row2">
+        <div><label>Fuel Inicial (KG)</label><input type="number" id="fuel-init" value="560" oninput="calcFuel()"></div>
+        <div><label>Consumo (KG/HR)</label><input type="number" id="fuel-ff" value="195" oninput="calcFuel()"></div>
+      </div>
+      <div class="row2">
+        <div><label>Velocidad (KT)</label><input type="number" id="fuel-spd" value="130" oninput="calcFuel()"></div>
+        <div><label style="color:var(--muted)">Reserva EASA</label><span style="font-size:11px;color:var(--amber);font-weight:700;line-height:2">20 min · fija</span></div>
+      </div>
+      <!-- Resv. fija: 20min×FF | Alt: 0 -->
+      <div style="margin-top:8px;padding:8px;border-radius:6px;background:var(--bg3);border:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:3px">FUEL REQUERIDO PARA EL TRACK</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span id="fc-required" style="font-size:20px;font-family:'Orbitron',sans-serif;font-weight:700;color:var(--green)">--</span>
+          <span style="font-size:11px;color:var(--muted)">kg</span>
+          <span id="fc-req-limit" style="font-size:10px;display:none;color:var(--red);font-weight:700">⚠ EXCEDE LÍMITE 568 KG</span>
+        </div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">Trip + Reserva 20min EASA · Máx estanque: <span style="color:var(--amber)">568 kg</span></div>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">📈 ESTADO COMBUSTIBLE</div>
+      <div class="kv"><span class="k">Fuel Inicial</span><span class="v" id="fc-init">560 KG</span></div>
+      <div class="kv"><span class="k">Trip Fuel (ruta)</span><span class="v" id="fc-trip">-- KG</span></div>
+      <div class="kv"><span class="k">Reserva 20min</span><span class="v" id="fc-res" style="color:var(--red)">-- KG</span></div>
+      <div class="kv"><span class="k">EXTRA</span><span class="v ok" id="fc-extra">-- KG</span></div>
+      <!-- BARRA COMBUSTIBLE REMANENTE -->
+      <div style="margin-top:10px;margin-bottom:4px;font-size:9px;font-weight:700;color:var(--text);letter-spacing:1px">COMBUSTIBLE REMANENTE EN DESTINO</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;text-align:center;margin-bottom:6px">
+        <span id="fc-rem-display" style="color:var(--green)">--</span><span style="font-size:11px;color:var(--muted)"> kg</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:8px">remanente</span>
+      </div>
+      <!-- Barra: [TRIP consumido] [EXTRA remanente] [RESV fija] -->
+      <div style="position:relative;height:28px;border-radius:8px;overflow:hidden;background:var(--bg3);border:1px solid var(--border)">
+        <div id="fc-seg-trip"  style="position:absolute;left:0;top:0;height:100%;background:#0d47a1;transition:width .5s;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <span id="fc-lbl-trip" style="font-size:9px;color:#90caf9;white-space:nowrap;padding:0 4px"></span>
+        </div>
+        <div id="fc-seg-extra" style="position:absolute;top:0;height:100%;background:#1b5e20;transition:.5s;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <span id="fc-lbl-extra" style="font-size:9px;color:#a5d6a7;white-space:nowrap;padding:0 4px"></span>
+        </div>
+        <div id="fc-seg-res"   style="position:absolute;right:0;top:0;height:100%;background:#b71c1c;transition:.5s;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <span id="fc-lbl-res" style="font-size:9px;color:#ef9a9a;white-space:nowrap;padding:0 4px"></span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:3px">
+        <span style="color:#90caf9">◄ Trip consumido</span>
+        <span id="fc-bar-total" style="color:var(--muted)">Total: 560 kg</span>
+        <span style="color:#ef9a9a">Resv ►</span>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">⏱ ENDURANCE</div>
+      <div class="kv"><span class="k">Endurance Total</span><span class="v" id="fc-end-t">--</span></div>
+      <div class="kv"><span class="k">Endurance Útil</span><span class="v ok" id="fc-end-u">--</span></div>
+      <div class="kv"><span class="k">Alcance Total (NM)</span><span class="v" id="fc-rng-t">--</span></div>
+      <div class="kv"><span class="k">Alcance Útil (NM)</span><span class="v ok" id="fc-rng-u">--</span></div>
+      <div class="kv"><span class="k">ETA Destino</span><span class="v" id="fc-eta">--</span></div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">📋 EASA CS-OPS / FAA 135</div>
+      <div style="font-size:11px;line-height:1.7;color:var(--text)">
+        <span style="color:var(--green2)">EASA:</span> Resv 20min · Cont 5% · Alt fuel<br>
+        <span style="color:var(--purple)">FAA VFR:</span> +30min alternado<br>
+        <span style="color:var(--purple)">FAA IFR:</span> +45min alternado
+      </div>
+    </div>
+  </div>
+
+
+  <!-- W&B -->
+  <div class="tab-content" id="twb">
+    <div class="sect" style="padding-bottom:4px">
+      <div class="sect-title">⚖ PESO Y BALANCE — EC135 T3H · AFM Sec.6.3</div>
+      <div class="row2" style="margin-bottom:4px">
+        <div><label style="font-size:9px">BEW (kg)</label><input type="number" id="wb-bew" value="1670" oninput="calcWB()" style="font-size:11px"></div>
+        <div><label style="font-size:9px">Brazo BEW X-STA (mm)</label><input type="number" id="wb-bew-arm" value="4556" oninput="calcWB()" style="font-size:11px"></div>
+      </div>
+      <!-- TABLA CARGA COMPLETA AFM 6.3 -->
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:10px">
+        <thead>
+          <tr style="background:var(--bg3);color:var(--green2)">
+            <th style="padding:4px 3px;text-align:left">Ítem</th>
+            <th style="padding:4px 3px;text-align:right">kg</th>
+            <th style="padding:4px 3px;text-align:right">X-STA<br><span style="font-size:8px;color:var(--muted)">(mm)</span></th>
+            <th style="padding:4px 3px;text-align:right">Mom X<br><span style="font-size:8px;color:var(--muted)">(kg·mm)</span></th>
+            <th style="padding:4px 3px;text-align:right">Y-BL<br><span style="font-size:8px;color:var(--muted)">(mm)</span></th>
+          </tr>
+        </thead>
+        <tbody id="wb-table-body">
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px">Masa Vacía</td><td><span id="wb-bew-disp" style="color:var(--muted);padding:0 3px">1670</span></td><td><span style="color:var(--muted);padding:0 3px">4556</span></td><td id="wm-bew" style="text-align:right;color:var(--muted);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">19</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px">Equipo Misión</td><td><input type="number" id="wb-eq" value="72" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td><input type="number" id="wb-eq-ax" value="3735" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td id="wm-eq" style="text-align:right;color:var(--cyan);padding:0 3px">-</td><td><input type="number" id="wb-eq-ay" value="0" oninput="calcWB()" style="width:40px;padding:2px;font-size:10px"></td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px">Equipaje</td><td><input type="number" id="wb-bag" value="0" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td><span style="color:var(--muted);padding:0 3px">5000</span></td><td id="wm-bag" style="text-align:right;color:var(--cyan);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">0</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px">Piloto</td><td><input type="number" id="wb-p1" value="85" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td><span style="color:var(--muted);padding:0 3px">2439</span></td><td id="wm-p1" style="text-align:right;color:var(--cyan);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">+390</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px">Copiloto</td><td><input type="number" id="wb-p2" value="0" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td><span style="color:var(--muted);padding:0 3px">2439</span></td><td id="wm-p2" style="text-align:right;color:var(--cyan);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">−390</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px;font-size:9px">3 PAX Delant.<br><span style="color:var(--muted)">(contra vuelo)</span></td><td><input type="number" id="wb-paxf" value="0" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td><span style="color:var(--muted);padding:0 3px">3331</span></td><td id="wm-pf" style="text-align:right;color:var(--cyan);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">0</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:3px;font-size:9px">2 PAX Tras.<br><span style="color:var(--muted)">(en vuelo)</span></td><td><input type="number" id="wb-paxa" value="0" oninput="calcWB()" style="width:52px;padding:2px;font-size:10px"></td><td><span style="color:var(--muted);padding:0 3px">4243</span></td><td id="wm-pa" style="text-align:right;color:var(--cyan);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">0</td></tr>
+          <tr style="border-bottom:2px solid var(--green)"><td style="padding:3px;color:var(--amber)">⛽ FUEL</td><td><input type="number" id="wb-fuel" value="560" oninput="syncFuel()" style="width:52px;padding:2px;font-size:10px;border-color:var(--amber)"></td><td><span style="color:var(--muted);padding:0 3px">4220</span></td><td id="wm-fuel" style="text-align:right;color:var(--amber);padding:0 3px">-</td><td style="text-align:right;color:var(--muted);padding:0 3px">−4</td></tr>
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--bg3)">
+            <td style="padding:4px 3px;font-weight:700;color:var(--green2)">TOTAL</td>
+            <td style="text-align:right;padding:0 3px;font-weight:700" id="wb-tow">--</td>
+            <td style="padding:0 3px;color:var(--muted);font-size:9px">X-STA:</td>
+            <td style="text-align:right;padding:0 3px;font-weight:700;color:var(--gold)" id="wb-xsta">--</td>
+            <td style="text-align:right;padding:0 3px;font-weight:700;color:var(--cyan)" id="wb-ybl">--</td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+    </div>
+    <div class="sect" style="padding:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+        <div style="padding:8px;background:var(--bg3);border-radius:6px">
+          <div style="font-size:9px;color:var(--muted)">MASA TOTAL</div>
+          <div style="font-size:15px;font-weight:700" id="wb-tow-big">-- kg</div>
+          <div style="font-size:9px" id="wb-margin">--</div>
+        </div>
+        <div style="padding:8px;background:var(--bg3);border-radius:6px" id="wb-status-box">
+          <div style="font-size:9px;color:var(--muted)">ESTADO</div>
+          <div style="font-size:12px;font-weight:700" id="wb-status">--</div>
+          <div style="font-size:9px;color:var(--muted)" id="wb-cg-vals">--</div>
+        </div>
+      </div>
+      <!-- CG CHARTS -->
+      <div style="font-size:9px;color:var(--muted);text-align:center;margin-bottom:4px">Envolvente Longitudinal (X-STA) · Fig.6-2 AFM</div>
+      <canvas id="wbLongChart" style="width:100%;max-width:280px;height:160px;display:block;margin:0 auto"></canvas>
+      <div style="font-size:9px;color:var(--muted);text-align:center;margin:8px 0 4px">Envolvente Lateral (Y-BL) · Fig.6-3 AFM</div>
+      <canvas id="wbLatChart" style="width:100%;max-width:280px;height:110px;display:block;margin:0 auto"></canvas>
+    </div>
+  </div>
+
+  <!-- FTL -->
+  <div class="tab-content" id="tftl">
+    <div class="sect">
+      <div class="sect-title">⏰ FTL — EASA ORO.FTL.210</div>
+      <label>Horas vuelo HOY (hr)</label>
+      <input type="number" id="ftl-day" value="0" step="0.1" oninput="calcFTL()">
+      <label style="margin-top:6px">Horas vuelo SEMANA (hr)</label>
+      <input type="number" id="ftl-week" value="0" step="0.1" oninput="calcFTL()">
+      <label style="margin-top:6px">Horas vuelo MES (hr)</label>
+      <input type="number" id="ftl-month" value="0" step="0.1" oninput="calcFTL()">
+      <label style="margin-top:6px">Horas vuelo AÑO (hr)</label>
+      <input type="number" id="ftl-year" value="0" step="0.1" oninput="calcFTL()">
+      <label style="margin-top:6px">Duración misión actual (hr)</label>
+      <input type="number" id="ftl-mission" value="1.5" step="0.1" oninput="calcFTL()">
+    </div>
+    <div class="sect">
+      <div class="sect-title">📊 ESTADO FTL</div>
+      <div id="ftl-bars"></div>
+    </div>
+    <div class="sect">
+      <div class="sect-title">🔒 LÍMITES EASA</div>
+      <div class="kv"><span class="k">Diario</span><span class="v">8 HR</span></div>
+      <div class="kv"><span class="k">Semanal</span><span class="v">55 HR</span></div>
+      <div class="kv"><span class="k">Mensual</span><span class="v">190 HR</span></div>
+      <div class="kv"><span class="k">Anual</span><span class="v">900 HR</span></div>
+    </div>
+  </div>
+
+
+  <!-- NORM -->
+  <div class="tab-content" id="tnorm">
+    <div class="norm-sect">
+      <div class="norm-title">EASA CS-OPS / ORO <span class="badge badge-easa">EASA</span></div>
+      <div class="norm-rule"><span class="nr-key">Reserva final (rot.):</span> 20 min combustible vuelo normal</div>
+      <div class="norm-rule"><span class="nr-key">Contingencia:</span> Mayor de 5% trip fuel ó 5 min</div>
+      <div class="norm-rule"><span class="nr-key">Alternado:</span> Fuel para llegar + reserva</div>
+      <div class="norm-rule"><span class="nr-key">FDP máximo:</span> 13 horas base (variable por sector)</div>
+      <div class="norm-rule"><span class="nr-key">Rest mínimo:</span> Igual FDP anterior, mínimo 10 hr</div>
+    </div>
+    <div class="norm-sect">
+      <div class="norm-title">FAA 14 CFR 135 <span class="badge badge-faa">FAA</span></div>
+      <div class="norm-rule"><span class="nr-key">135.209 VFR:</span> 30 min adicional al alternado</div>
+      <div class="norm-rule"><span class="nr-key">135.211 IFR:</span> 45 min al alternado tras destino</div>
+      <div class="norm-rule"><span class="nr-key">FTL 24hr:</span> 8 horas de vuelo</div>
+      <div class="norm-rule"><span class="nr-key">FTL 30 días:</span> 100 horas de vuelo</div>
+      <div class="norm-rule"><span class="nr-key">FTL 12 meses:</span> 1000 horas de vuelo</div>
+    </div>
+    <div class="norm-sect">
+      <div class="norm-title">CATEGORÍAS MET <span class="badge badge-icao">ICAO</span></div>
+      <div class="norm-rule"><span style="color:var(--green)">VFR:</span> Vis ≥8km · Techo ≥1000ft AGL</div>
+      <div class="norm-rule"><span style="color:var(--blue)">MVFR:</span> Vis 5–8km · Techo 500–1000ft</div>
+      <div class="norm-rule"><span style="color:var(--amber)">IFR:</span> Vis 1.6–5km · Techo 300–500ft</div>
+      <div class="norm-rule"><span style="color:var(--red)">LIFR:</span> Vis &lt;1.6km · Techo &lt;300ft</div>
+    </div>
+    <div class="norm-sect">
+      <div class="norm-title">FRECUENCIAS ATC CHILE</div>
+      <div class="norm-rule"><span class="nr-key">DGAC ACC Centro:</span> 127.7 MHz</div>
+      <div class="norm-rule"><span class="nr-key">SCTL Talca Torre:</span> 122.8 MHz</div>
+      <div class="norm-rule"><span class="nr-key">SCEL Santiago Appr:</span> 119.1 / 124.4 MHz</div>
+      <div class="norm-rule"><span class="nr-key">SCCC Concepción:</span> 118.3 MHz</div>
+      <div class="norm-rule"><span class="nr-key">Guard Emergencia:</span> 121.5 MHz</div>
+    </div>
+    <div class="norm-sect">
+      <div class="norm-title">H135 T3H — PERFORMANCE</div>
+      <div class="norm-rule"><span class="nr-key">MTOW:</span> 2980 kg · BEW: ~1490 kg</div>
+      <div class="norm-rule"><span class="nr-key">Fuel usable:</span> 560 kg · FF cruise: ~195 kg/hr</div>
+      <div class="norm-rule"><span class="nr-key">TAS cruise:</span> ~130 KT · Vh max: 155 KT</div>
+      <div class="norm-rule"><span class="nr-key">Motores:</span> 2x Turbomeca Arriel 2E</div>
+      <div class="norm-rule"><span class="nr-key">HOGE/HIGE:</span> DA dependiente / ver AFM</div>
+    </div>
+    <div class="norm-sect">
+      <div class="norm-title">FIR / ESPACIO AÉREO CHILE</div>
+      <div class="norm-rule"><span class="nr-key">FIR Santiago SCEZ:</span> Límite FL245</div>
+      <div class="norm-rule"><span class="nr-key">Areas restringidas:</span> AIP Chile ENR 5.1</div>
+      <div class="norm-rule"><span class="nr-key">Zonas peligro:</span> AIP Chile ENR 5.2</div>
+      <div class="norm-rule"><span class="nr-key">NOTAM DGAC:</span> notam.dgac.gob.cl</div>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER MAP -->
+<div id="mapwrap">
+  <div id="map"></div>
+
+  <!-- Windy floating window -->
+  <div id="windy-float">
+    <div id="windy-header">
+      <span class="wt">🌪 WINDY OVERLAY</span>
+      <div style="display:flex;gap:6px">
+        <button class="wbtn" onclick="syncWindy()">SYNC MAP</button>
+        <button class="wbtn" onclick="closeWindy()">✕</button>
+      </div>
+    </div>
+    <div id="windy-body"><iframe id="windy-iframe" src="" allowfullscreen></iframe></div>
+  </div>
+
+  <!-- Meteogram popup -->
+  <div id="meteo-popup">
+    <div id="meteo-header">
+      <span class="mt">📊 METEOGRAMA 48H</span>
+      <button class="mwbtn" onclick="document.getElementById('meteo-popup').style.display='none'">✕</button>
+    </div>
+    <div id="meteo-loc">Clic en el mapa para ver meteograma</div>
+    <div id="meteo-body"><canvas id="meteoChart"></canvas></div>
+  </div>
+
+  <!-- SIGMET info bar -->
+  <div id="sigmet-info">⚠ SIGMET ACTIVO — Capa activa</div>
+
+  <!-- Windy mini toggle on map -->
+  <div id="windy-mini" onclick="toggleWindy(this)" title="Windy Overlay" style="position:absolute;top:10px;left:50px;z-index:800;background:var(--bg2);border:1px solid var(--cyan);border-radius:6px;padding:5px 10px;font-size:10px;font-family:'Orbitron',sans-serif;color:var(--cyan);cursor:pointer;user-select:none;display:flex;align-items:center;gap:5px">
+    <span>🌪</span><span id="windy-mini-lbl">WINDY OFF</span>
+  </div>
+  <div onclick="openMeteoLastWpt()" title="Meteograma último waypoint" style="position:absolute;top:10px;left:192px;z-index:800;background:var(--bg2);border:1px solid var(--amber);border-radius:6px;padding:5px 10px;font-size:10px;font-family:'Orbitron',sans-serif;color:var(--amber);cursor:pointer;user-select:none;display:flex;align-items:center;gap:5px">
+    <span>📊</span><span>METEO WPT</span>
+  </div>
+  <!-- Map overlays toggle -->
+  <div id="layers-mini" style="position:absolute;top:46px;left:50px;z-index:800;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px;display:flex;gap:3px">
+    <button class="map-btn" onclick="toggleSIGMET(this)" title="SIGMET" style="padding:3px 6px;font-size:9px">SIG</button>
+    <button class="map-btn" onclick="toggleRestricted(this)" title="Restringidos" style="padding:3px 6px;font-size:9px">REST</button>
+    <button class="map-btn" onclick="toggleBarbs(this)" title="Wind Barbs" style="padding:3px 6px;font-size:9px">WIND</button>
+  </div>
+  <!-- Map bottom buttons -->
+  <div class="map-btn-group">
+    <button class="map-btn" onclick="map.setView([-35.35,-71.6],8)">🏠 HOME</button>
+    <button class="map-btn" onclick="fitRoute()">📐 RUTA</button>
+    <button class="map-btn" onclick="loadMETAR()">🔄 METAR</button>
+    <button class="map-btn" onclick="loadNOTAM()">📋 NOTAM</button>
+  </div>
+</div>
+
+<!-- OEI MODAL ────────────────────────────────────────────────────── -->
+<div id="oei-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:#000a;backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--bg1);border:1px solid var(--amber);border-radius:10px;width:720px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:18px;box-shadow:0 0 40px #ffab0055">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:12px;color:var(--amber);letter-spacing:2px">✈ OEI HOVER HOIST — ÁREA CONFINADA EC135 T3H</div>
+      <button onclick="closeOEI()" style="background:none;border:1px solid var(--muted);color:var(--muted);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Fig.7 AFM EC135T3H · IBF Instalado · Bleed Air OFF · Viento Cero o Proa</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:10px;color:var(--text)">OAT (°C)</label>
+        <input type="number" id="oei-oat" value="15" style="width:100%;margin-top:3px" oninput="calcOEIChart()">
+        <label style="font-size:10px;color:var(--text);margin-top:6px;display:block">Altitud Presión / Elevación (ft)</label>
+        <input type="number" id="oei-pa" value="324" style="width:100%;margin-top:3px" oninput="calcOEIChart()">
+        <label style="font-size:10px;color:var(--text);margin-top:6px;display:block">Headwind (kt) — máx 30</label>
+        <input type="number" id="oei-hw" value="0" min="0" max="30" style="width:100%;margin-top:3px" oninput="calcOEIChart()">
+        <label style="font-size:10px;color:var(--text);margin-top:6px;display:block">Peso Aeronave TOW (kg) <span style="color:var(--cyan)">[auto W&amp;B]</span></label>
+        <input type="number" id="oei-tow2" value="2500" style="width:100%;margin-top:3px" oninput="calcOEIChart()">
+        <div id="oei-da-display" style="margin-top:8px;padding:6px;background:var(--bg2);border-radius:4px;font-size:11px"></div>
+        <div id="oei-result2" style="margin-top:8px;padding:10px;border-radius:6px;font-size:12px;font-weight:700;text-align:center"></div>
+        <button onclick="autoFillOEI()" style="width:100%;margin-top:8px;padding:7px;background:var(--bg3);border:1px solid var(--cyan);color:var(--cyan);border-radius:4px;cursor:pointer;font-size:10px;font-family:'Orbitron',sans-serif">⬇ AUTO-LLENAR DESDE RUTA + W&amp;B</button>
+      </div>
+      <div style="position:relative;min-height:320px">
+        <canvas id="oeiChart" width="330" height="320"></canvas>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px">
+      <span style="color:var(--amber)">⚠ Limitaciones:</span> Chart basado en Fig.7 del AFM EC135T3H. No usar para decisiones operacionales sin verificar con AFM original. Altitud densidad = altitud presión +(120×(OAT−ISA_OAT)). ISA OAT = 15 − (altitud_presión × 0.00198).
+    </div>
+  </div>
+</div>
+
+<!-- OEI OGE MODAL ──────────────────────────────────────────────────── -->
+<div id="oei-oge-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:#000a;backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:var(--bg1);border:1px solid var(--cyan);border-radius:10px;width:720px;max-width:96vw;max-height:90vh;overflow-y:auto;padding:18px;box-shadow:0 0 40px #00e5ff33">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:var(--cyan);letter-spacing:2px">📈 OEI HOVER CEILING OUT OF GROUND EFFECT</div>
+      <button onclick="closeOEIoge()" style="background:none;border:1px solid var(--muted);color:var(--muted);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">1×TURBOMECA ARRIUS 2B2 · 2.0 MIN. PWR · Bleed Air OFF · Viento Cero o Proa · Fig.45 AFM</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:10px;color:var(--text)">OAT (°C)</label>
+        <input type="number" id="oge-oat" value="15" style="width:100%;margin-top:3px" oninput="calcOGEChart()">
+        <label style="font-size:10px;color:var(--text);margin-top:6px;display:block">Altitud Presión / Elevación (ft)</label>
+        <input type="number" id="oge-pa" value="324" style="width:100%;margin-top:3px" oninput="calcOGEChart()">
+        <label style="font-size:10px;color:var(--text);margin-top:6px;display:block">Headwind (kt) — máx 30</label>
+        <input type="number" id="oge-hw" value="0" min="0" max="30" style="width:100%;margin-top:3px" oninput="calcOGEChart()">
+        <label style="font-size:10px;color:var(--text);margin-top:6px;display:block">Peso Aeronave TOW (kg) <span style="color:var(--cyan)">[auto W&amp;B]</span></label>
+        <input type="number" id="oge-tow" value="2500" style="width:100%;margin-top:3px" oninput="calcOGEChart()">
+        <div id="oge-da-display" style="margin-top:8px;padding:6px;background:var(--bg2);border-radius:4px;font-size:11px"></div>
+        <div id="oge-result" style="margin-top:8px;padding:10px;border-radius:6px;font-size:12px;font-weight:700;text-align:center"></div>
+        <button onclick="autoFillOGE()" style="width:100%;margin-top:8px;padding:7px;background:var(--bg3);border:1px solid var(--cyan);color:var(--cyan);border-radius:4px;cursor:pointer;font-size:10px;font-family:'Orbitron',sans-serif">⬇ AUTO-LLENAR DESDE RUTA + W&amp;B</button>
+      </div>
+      <div style="position:relative;min-height:320px">
+        <canvas id="ogeChart" width="330" height="320"></canvas>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);padding-top:8px">
+      <span style="color:var(--cyan)">ℹ OGE = Out of Ground Effect.</span> Rendimiento inferior a IGE. DA máx certificada: 16000 ft. Masa máx: 2980 kg. Nota: la contabilización del viento NO está factorizada por ráfagas.
+    </div>
+  </div>
+</div>
+<!-- TICKER INFO ───────────────────────────────────────────────────── -->
+<div id="ticker-wrap">
+  <span style="font-family:'Orbitron',sans-serif;font-size:9px;color:var(--amber);padding:0 10px;flex-shrink:0">▶ AIP CL</span>
+  <div id="ticker-viewport" style="flex:1;overflow:hidden;position:relative;height:100%">
+    <div id="ticker-content"></div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="rpanel">
+  <div class="sect">
+    <div class="sect-title">🌤 METAR EN TIEMPO REAL</div>
+    <div id="metar-list"><div style="color:var(--muted);font-size:11px;text-align:center;padding:10px"><span class="spin"></span> Cargando...</div></div>
+  </div>
+  <div class="sect">
+    <div class="sect-title">📢 NOTAM ACTIVOS</div>
+    <div id="notam-list"><div class="notam-none">Pulsa NOTAM en el mapa para cargar</div></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const AEROS=[
+  // HOME BASE
+  {icao:'SCTL',name:'Talca',lat:-35.3567,lon:-71.6019,elev:324,rwy:'18/36',len:1750,home:true,type:'DOM'},
+  // ZONA CENTRAL
+  {icao:'SCEL',name:'A.M.Benítez-Santiago',lat:-33.3930,lon:-70.7858,elev:474,rwy:'17L/35R',len:3800,type:'INT'},
+  {icao:'SCRD',name:'El Teniente-Rancagua',lat:-34.1736,lon:-70.7758,elev:2132,rwy:'06/24',len:1500,type:'DOM'},
+  {icao:'SCFI',name:'San Fernando',lat:-34.5897,lon:-71.0028,elev:324,rwy:'04/22',len:950,type:'DOM'},
+  {icao:'SCVC',name:'Gen.Bernardo-Curicó',lat:-34.9617,lon:-71.2183,elev:219,rwy:'03/21',len:1040,type:'DOM'},
+  {icao:'SCST',name:'Cauquenes',lat:-35.9744,lon:-72.3286,elev:140,rwy:'12/30',len:900,type:'DOM'},
+  {icao:'SCQP',name:'Constitución',lat:-35.3300,lon:-72.4161,elev:20,rwy:'06/24',len:800,type:'DOM'},
+  // BIOBÍO
+  {icao:'SCCH',name:'Chillán Las Calabazas',lat:-36.5825,lon:-72.0322,elev:180,rwy:'17/35',len:1200,type:'DOM'},
+  {icao:'SCRA',name:'El Bello-Los Ángeles',lat:-37.4017,lon:-72.4253,elev:141,rwy:'09/27',len:1200,type:'DOM'},
+  {icao:'SCCC',name:'Carriel Sur-Concepción',lat:-36.9772,lon:-73.0614,elev:26,rwy:'02/20',len:2730,type:'INT'},
+  {icao:'SCGE',name:'Los Confines-Angol',lat:-37.7994,lon:-72.7017,elev:74,rwy:'05/23',len:1100,type:'DOM'},
+  // LA ARAUCANÍA
+  {icao:'SCTE',name:'La Araucanía-Temuco',lat:-38.7658,lon:-72.6372,elev:383,rwy:'01/19',len:2100,type:'INT'},
+  {icao:'SCMK',name:'Maquehue-Temuco',lat:-38.7688,lon:-72.6370,elev:298,rwy:'12/30',len:1350,type:'DOM'},
+  {icao:'SCPU',name:'Pucón',lat:-39.2928,lon:-71.9159,elev:290,rwy:'09/27',len:1100,type:'DOM'},
+  // LOS RÍOS / LOS LAGOS
+  {icao:'SCVD',name:'Pichoy-Valdivia',lat:-39.6500,lon:-73.0861,elev:18,rwy:'06/24',len:1600,type:'DOM'},
+  {icao:'SCJO',name:'Carlos Hott-Osorno',lat:-40.6112,lon:-73.0610,elev:59,rwy:'05/23',len:1600,type:'DOM'},
+  {icao:'SCSR',name:'El Tepual-Puerto Montt',lat:-41.4389,lon:-73.0939,elev:85,rwy:'17/35',len:2450,type:'INT'},
+  {icao:'SCPQ',name:'Castro-Chiloé',lat:-42.4897,lon:-73.7114,elev:75,rwy:'09/27',len:1500,type:'DOM'},
+  // AYSÉN
+  {icao:'SCFU',name:'Futaleufu',lat:-43.1885,lon:-71.8544,elev:359,rwy:'11/29',len:940,type:'DOM'},
+  {icao:'SCMN',name:'Melinka',lat:-43.8994,lon:-73.7233,elev:7,rwy:'01/19',len:850,type:'DOM'},
+  {icao:'SCTN',name:'Chaitén',lat:-42.9282,lon:-72.6993,elev:8,rwy:'03/21',len:900,type:'DOM'},
+  {icao:'SCCY',name:'Ten.Vidal-Coyhaique',lat:-45.5942,lon:-72.1061,elev:310,rwy:'01/19',len:1400,type:'DOM'},
+  {icao:'SCBA',name:'Balmaceda',lat:-45.9161,lon:-71.6895,elev:520,rwy:'07/25',len:2100,type:'DOM'},
+  // MAGALLANES
+  {icao:'SCCI',name:'C.Ibáñez del Campo-P.Arenas',lat:-53.0026,lon:-70.8546,elev:43,rwy:'07/25',len:3050,type:'INT'},
+  {icao:'SCNT',name:'J.Gallardo-Pto.Natales',lat:-51.6715,lon:-72.5281,elev:32,rwy:'11/29',len:1300,type:'DOM'},
+  {icao:'SCGZ',name:'Grd.Zañartu-Pto.Williams',lat:-54.9310,lon:-67.6262,elev:52,rwy:'08/26',len:1150,type:'DOM'},
+  // NORTE GRANDE
+  {icao:'SCDA',name:'Chacalluta-Arica',lat:-18.3448,lon:-70.3386,elev:57,rwy:'01/19',len:2900,type:'INT'},
+  {icao:'SCSE',name:'Diego Aracena-Iquique',lat:-20.5352,lon:-70.1813,elev:52,rwy:'01/19',len:3200,type:'INT'},
+  {icao:'SCLL',name:'El Loa-Calama',lat:-22.4981,lon:-68.9036,elev:2265,rwy:'06/24',len:3000,type:'INT'},
+  {icao:'SCTO',name:'Barriles-Tocopilla',lat:-22.1406,lon:-70.1672,elev:30,rwy:'01/19',len:1100,type:'DOM'},
+  // NORTE CHICO
+  {icao:'SCFA',name:'A.Sabella-Antofagasta',lat:-23.4444,lon:-70.4451,elev:122,rwy:'01/19',len:2800,type:'INT'},
+  {icao:'SCES',name:'El Salvador',lat:-26.3111,lon:-69.7694,elev:830,rwy:'09/27',len:1400,type:'DOM'},
+  {icao:'SCAS',name:'Atacama-Copiapó',lat:-27.2612,lon:-70.7791,elev:670,rwy:'01/19',len:2500,type:'DOM'},
+  {icao:'SCHA',name:'Freirina-Huasco',lat:-28.4706,lon:-71.2167,elev:58,rwy:'12/30',len:1060,type:'DOM'},
+  {icao:'SCIC',name:'La Florida-La Serena',lat:-29.9162,lon:-71.1995,elev:146,rwy:'12/30',len:2700,type:'INT'},
+  // ISLAS
+  {icao:'SCJF',name:'R.Crusoe-Juan Fernández',lat:-33.6649,lon:-78.9294,elev:40,rwy:'10/28',len:1000,type:'DOM'},
+  {icao:'SCIP',name:'Mataveri-Isla de Pascua',lat:-27.1648,lon:-109.4217,elev:69,rwy:'10/28',len:3353,type:'INT'},
+];
+const H135={bew:1670,mtow:2980,fuelMax:560,ff:195,tas:130,cgFwd:3.97,cgAft:4.44};
+const FTL_LIM={day:8,week:55,month:190,year:900};
+const R_NM=3440.065;
+
+let waypoints=[],metarData={},sarLayer=null,restrictedLayer=null,barbsLayer=null,sigmetLayer=null,meteoChartObj=null;
+
+// MAP
+const map=L.map('map',{center:[-35.35,-71.6],zoom:8,zoomControl:false});
+// TOPOGRAPHIC MAP — curvas de nivel, ríos, lagos, localidades (OpenTopoMap)
+L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+  attribution:'©OpenTopoMap (CC-BY-SA) | ©OpenStreetMap contributors',
+  subdomains:['a','b','c'],
+  maxZoom:17,
+  opacity:0.97
+}).addTo(map);
+L.control.zoom({position:'topright'}).addTo(map);
+
+function aeroIcon(home){
+  return L.divIcon({
+    html:`<div style="background:${home?'#00e676':'#40c4ff'};width:10px;height:10px;border-radius:50%;border:2px solid ${home?'#004d40':'#00838f'};box-shadow:0 0 8px ${home?'#00e676':'#40c4ff'}88"></div>`,
+    iconSize:[10,10],iconAnchor:[5,5],className:''
+  });
+}
+
+AEROS.forEach(a=>{
+  L.marker([a.lat,a.lon],{icon:aeroIcon(a.home)}).addTo(map)
+    .bindPopup(`<b style="color:#00e676">${a.icao}</b> — ${a.name}<br>ELEV:${a.elev}ft | RWY:${a.rwy} ${a.len}m<br><small style="color:#3a5e47">Clic → meteograma</small>`)
+    .on('click',()=>openMeteogram(a.lat,a.lon,`${a.icao} ${a.name}`));
+});
+
+
+const routeLayer=L.layerGroup().addTo(map);
+const markerLayer=L.layerGroup().addTo(map);
+
+map.on('click',e=>{
+  if(e.originalEvent.shiftKey){
+    openMeteogram(e.latlng.lat,e.latlng.lng,`${e.latlng.lat.toFixed(4)},${e.latlng.lng.toFixed(4)}`);
+  } else {
+    const lat=+e.latlng.lat.toFixed(5), lon=+e.latlng.lng.toFixed(5);
+    document.getElementById('wp-lat-dd').value=lat;
+    document.getElementById('wp-lon-dd').value=lon;
+    previewCoord();
+    const name=`WPT${waypoints.length+1} ${Math.abs(lat).toFixed(2)}${lat<0?'S':'N'}`;
+    document.getElementById('wp-name').value=name;
+    fetchElevAndPush(lat, lon, name, false);
+  }
+});
+
+// CLOCK
+function tick(){
+  const n=new Date();
+  document.getElementById('clock').textContent=
+    [n.getUTCHours(),n.getUTCMinutes(),n.getUTCSeconds()].map(x=>String(x).padStart(2,'0')).join(':')+' Z';
+}
+setInterval(tick,1000);tick();
+
+// TABS
+const TABS=['ruta','fuel','wb','ftl','norm'];
+function showTab(t){
+  TABS.forEach(x=>{
+    document.getElementById('t'+x).classList.remove('on');
+    document.getElementById('btab-'+x).classList.remove('on');
+  });
+  document.getElementById('t'+t).classList.add('on');
+  document.getElementById('btab-'+t).classList.add('on');
+  if(t==='ftl')calcFTL();
+  if(t==='wb')setTimeout(()=>{calcWB();},40);
+}
+
+// HAVERSINE
+function hav(la1,lo1,la2,lo2){
+  const p1=la1*Math.PI/180,p2=la2*Math.PI/180;
+  const dp=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;
+  const a=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return 2*R_NM*Math.asin(Math.sqrt(a));
+}
+function brg(la1,lo1,la2,lo2){
+  const f1=la1*Math.PI/180,f2=la2*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;
+  return((Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))*180/Math.PI)+360)%360;
+}
+function fmtT(h){if(isNaN(h)||h<0)return'--';return Math.floor(h)+'H'+String(Math.round((h%1)*60)).padStart(2,'0')+'M';}
+
+// WAYPOINTS
+// Fetch elevation from AEROS lookup or Open-Meteo API, then push waypoint
+async function fetchElevAndPush(lat, lon, name, clearInputs){
+  let elev = null;
+  // 1. Check AEROS
+  const a = AEROS.find(x=>Math.abs(x.lat-lat)<0.05&&Math.abs(x.lon-lon)<0.05);
+  if(a){ elev = a.elev; }
+  else {
+    try{
+      const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`);
+      const d = await r.json();
+      if(d.elevation && d.elevation.length) elev = Math.round(d.elevation[0]);
+    } catch(e){ /* silent fail */ }
+  }
+  waypoints.push({lat,lon,name,elev});
+  if(clearInputs){
+    document.getElementById('wp-lat-dd').value='';
+    document.getElementById('wp-lon-dd').value='';
+    document.getElementById('wp-name').value='';
+    document.getElementById('coord-preview').textContent='';
+  }
+  renderRoute();
+  const elevStr = elev!=null ? ` · ${elev}ft` : '';
+  showToast(`WPT: ${name}${elevStr}`);
+}
+
+function addWaypoint(){
+  const lat=parseFloat(document.getElementById('wp-lat-dd').value);
+  const lon=parseFloat(document.getElementById('wp-lon-dd').value);
+  const name=document.getElementById('wp-name').value||`WPT${waypoints.length+1}`;
+  if(isNaN(lat)||isNaN(lon)){showToast('Ingresa coordenadas válidas');return;}
+  fetchElevAndPush(lat, lon, name, true);
+}
+function removeWaypoint(i){waypoints.splice(i,1);renderRoute();}
+function clearRoute(){waypoints=[];renderRoute();}
+
+function renderRoute(){
+  markerLayer.clearLayers();routeLayer.clearLayers();
+  const list=document.getElementById('wp-list');
+  const legs=document.getElementById('legs-table');
+  if(!waypoints.length){
+    list.innerHTML='<li style="color:#3a5e47;font-size:11px;text-align:center;padding:10px">Sin waypoints</li>';
+    legs.innerHTML='<div style="color:#3a5e47;font-size:11px;text-align:center">Añade waypoints para ver tramos</div>';
+    updateHeader(0,0,560);return;
+  }
+  list.innerHTML='';
+  let total=0;
+  waypoints.forEach((wp,i)=>{
+    const d=i>0?hav(waypoints[i-1].lat,waypoints[i-1].lon,wp.lat,wp.lon):0;
+    total+=d;
+    const li=document.createElement('li');li.className='wpi';
+    li.innerHTML=`<span class="idx">${i+1}</span><span class="name">${wp.name}</span><span class="dist">${i>0?d.toFixed(1)+' NM':'-'}</span><span class="rm" onclick="removeWaypoint(${i})">✕</span>`;
+    list.appendChild(li);
+    const wi=L.divIcon({html:`<div style="font-family:Orbitron,sans-serif;font-size:10px;color:#00e676;background:#0b1610;border:1px solid #1a3d24;border-radius:3px;padding:2px 5px">${i+1}</div>`,iconSize:[24,18],iconAnchor:[12,9],className:''});
+    L.marker([wp.lat,wp.lon],{icon:wi}).addTo(markerLayer)
+      .bindPopup(`<b style="color:#00e676">WP${i+1}</b> ${wp.name}<br>${wp.lat.toFixed(4)},${wp.lon.toFixed(4)}`);
+  });
+  if(waypoints.length>1){
+    const coords=waypoints.map(w=>[w.lat,w.lon]);
+    // Sombra blanca gruesa → contraste sobre cualquier fondo topográfico
+    L.polyline(coords,{color:'#ffffff',weight:7,opacity:0.85,lineJoin:'round',lineCap:'round'}).addTo(routeLayer);
+    // Línea principal naranja-rojo (color aeronáutico, alta visibilidad)
+    L.polyline(coords,{color:'#ff4500',weight:3.5,opacity:1,lineJoin:'round',lineCap:'round'}).addTo(routeLayer);
+    // Ticks de dirección (decoración de ruta)
+    for(let i=1;i<waypoints.length;i++){
+      const mid=[(waypoints[i-1].lat+waypoints[i].lat)/2,(waypoints[i-1].lon+waypoints[i].lon)/2];
+      L.circleMarker(mid,{radius:3,color:'#ff4500',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(routeLayer);
+    }
+  }
+
+  const ff=parseFloat(document.getElementById('fuel-ff').value)||195;
+  const spd=parseFloat(document.getElementById('fuel-spd').value)||130;
+  // Get elevation for each WPT (sync from AEROS)
+  const wptElev=waypoints.map(wp=>{
+    const a=AEROS.find(x=>Math.abs(x.lat-wp.lat)<0.05&&Math.abs(x.lon-wp.lon)<0.05);
+    return a?a.elev:(wp.elev||null);
+  });
+  const fmtElev=e=>e!=null?`${e}ft`:'?ft';
+  // Header with altitude column
+  let html=`<table style="width:100%;border-collapse:collapse;font-size:10px">
+    <tr style="color:#3a5e47;font-size:9px;background:var(--bg3)">
+      <td style="padding:3px">TRAMO</td><td>BRG</td><td>NM</td><td style="color:#ffab00">KG</td>
+      <td style="color:#40c4ff">ALT dst</td><td>ETO</td>
+    </tr>`;
+  let cumF=0,cumT=0;
+  for(let i=1;i<waypoints.length;i++){
+    const d=hav(waypoints[i-1].lat,waypoints[i-1].lon,waypoints[i].lat,waypoints[i].lon);
+    const b=brg(waypoints[i-1].lat,waypoints[i-1].lon,waypoints[i].lat,waypoints[i].lon);
+    const t=d/spd,f=t*ff;cumF+=f;cumT+=t;
+    const elev=wptElev[i];
+    const elevClr=elev!=null?(elev>3000?'#ff5722':elev>1000?'var(--amber)':'#40c4ff'):'#3a5e47';
+    html+=`<tr style="border-top:1px solid #1a3d2422">
+      <td style="color:#9ee8bf;padding:3px">${waypoints[i-1].name?.split(' ')[0]||'WP'+i}→${waypoints[i].name?.split(' ')[0]||'WP'+(i+1)}</td>
+      <td style="color:#00e5ff">${b.toFixed(0)}°</td>
+      <td style="color:#69f0ae">${d.toFixed(1)}</td>
+      <td style="color:#ffab00">${f.toFixed(0)}</td>
+      <td style="color:${elevClr};font-weight:700">${fmtElev(elev)}</td>
+      <td style="color:#9ee8bf">${fmtT(cumT)}</td>
+    </tr>`;
+  }
+  legs.innerHTML=html+'</table>';
+  const fi=parseFloat(document.getElementById('fuel-init').value)||560;
+  updateHeader(waypoints.length,total,fi-cumF);
+  calcFuel();
+}
+
+function fitRoute(){
+  if(!waypoints.length)return;
+  if(waypoints.length===1){map.setView([waypoints[0].lat,waypoints[0].lon],10);return;}
+  map.fitBounds(waypoints.map(w=>[w.lat,w.lon]),{padding:[40,40]});
+}
+
+function updateHeader(n,dist,fuelRem){
+  document.getElementById('hdr-wpts').textContent=n;
+  document.getElementById('hdr-dist').textContent=dist.toFixed(1);
+  document.getElementById('hdr-fuel').textContent=Math.max(0,fuelRem).toFixed(0);
+  const spd=parseFloat(document.getElementById('fuel-spd').value)||130;
+  if(dist>0){const h=dist/spd,hh=Math.floor(h),mm=Math.round((h-hh)*60);document.getElementById('hdr-eto').textContent=`${hh}:${String(mm).padStart(2,'0')}`;}
+  else document.getElementById('hdr-eto').textContent='--:--';
+}
+
+// FUEL
+function syncFuel(){
+  // Sync fuel from W&B → FUEL tab
+  const f=parseFloat(document.getElementById('wb-fuel').value)||0;
+  document.getElementById('fuel-init').value=f;
+  calcFuel();calcWB();
+}
+function calcFuel(){
+  // Sync fuel-init → wb-fuel when calcFuel triggered from fuel tab
+  const fi=parseFloat(document.getElementById('fuel-init').value)||0;
+  const wf=document.getElementById('wb-fuel');
+  if(wf&&Math.abs((parseFloat(wf.value)||0)-fi)>0.5){wf.value=fi;calcWB();}
+  const init=parseFloat(document.getElementById('fuel-init').value)||560;
+  const ff=parseFloat(document.getElementById('fuel-ff').value)||195;
+  const spd=parseFloat(document.getElementById('fuel-spd').value)||130;
+  // Reserva fija 20 min EASA (no editable)
+  const res=parseFloat((ff/3).toFixed(1));
+  let td=0;for(let i=1;i<waypoints.length;i++)td+=hav(waypoints[i-1].lat,waypoints[i-1].lon,waypoints[i].lat,waypoints[i].lon);
+  const trip=td/spd*ff;
+  const extra=Math.max(0,init-trip-res);  // Sin contingencia por configuración operador
+  document.getElementById('fc-init').textContent=`${init.toFixed(0)} KG`;
+  document.getElementById('fc-trip').textContent=`${trip.toFixed(0)} KG`;
+  document.getElementById('fc-res').textContent=`${res.toFixed(0)} KG`;
+  const el=document.getElementById('fc-extra');el.textContent=`${extra.toFixed(0)} KG`;el.className='v'+(extra>30?' ok':extra>0?' warn':' danger');
+  document.getElementById('fc-end-t').textContent=fmtT(init/ff);
+  document.getElementById('fc-end-u').textContent=fmtT((init-res)/ff);
+  document.getElementById('fc-rng-t').textContent=`${(init/ff*spd).toFixed(0)} NM`;
+  document.getElementById('fc-rng-u').textContent=`${((init-res)/ff*spd).toFixed(0)} NM`;
+  if(td>0){const e=new Date(Date.now()+td/spd*3600000);document.getElementById('fc-eta').textContent=`${String(e.getUTCHours()).padStart(2,'0')}:${String(e.getUTCMinutes()).padStart(2,'0')}Z`;}
+  else document.getElementById('fc-eta').textContent='--';
+  // BARRA REMANENTE: [TRIP | EXTRA | RESV]
+  const required = trip + res;
+  const exceedsLimit = init > 568;
+  const reqEl=document.getElementById('fc-required');
+  if(reqEl){
+    reqEl.textContent=required.toFixed(0);
+    reqEl.style.color=required>568?'var(--red)':required>init?'var(--amber)':'var(--green)';
+  }
+  const limEl=document.getElementById('fc-req-limit');
+  if(limEl)limEl.style.display=init>568?'inline':'none';
+  // Alert on header fuel chip
+  const hdrFuelEl=document.getElementById('hdr-fuel');
+  if(hdrFuelEl)hdrFuelEl.style.color=exceedsLimit?'var(--red)':'';
+  const hdrReqEl=document.getElementById('hdr-fuel-req');
+  if(hdrReqEl){
+    hdrReqEl.textContent=required.toFixed(0);
+    hdrReqEl.style.color=required>568?'var(--red)':required>init*0.95?'var(--amber)':'var(--green)';
+    hdrReqEl.closest('.stat-chip').style.borderColor=required>568?'var(--red)':'#1a3d24';
+  }
+  document.getElementById('fc-bar-total').textContent=`Total: ${init.toFixed(0)} kg`;
+  const remDest=Math.max(0,extra);
+  document.getElementById('fc-rem-display').textContent=remDest.toFixed(0);
+  document.getElementById('fc-rem-display').style.color=remDest>res?'var(--green)':remDest>0?'var(--amber)':'var(--red)';
+  const pTrip =Math.min(100, trip /init*100);
+  const pRes  =Math.min(100, res  /init*100);
+  const pExtra=Math.max(0,100-pTrip-pRes);
+  const segTrip=document.getElementById('fc-seg-trip');
+  segTrip.style.left='0';segTrip.style.width=pTrip+'%';
+  const segExtra=document.getElementById('fc-seg-extra');
+  segExtra.style.left=pTrip+'%';segExtra.style.width=pExtra+'%';
+  const segRes=document.getElementById('fc-seg-res');
+  segRes.style.right='0';segRes.style.width=pRes+'%';
+  document.getElementById('fc-lbl-trip').textContent  =trip>20?`TRIP ${trip.toFixed(0)}kg`:'';
+  document.getElementById('fc-lbl-extra').textContent =pExtra>8?`${remDest.toFixed(0)}kg remanente`:'';
+  document.getElementById('fc-lbl-res').textContent   =pRes>6?`${res.toFixed(0)}kg`:'';
+}
+
+// ALTERNATES
+function calcAlts(){
+  const fr=parseFloat(document.getElementById('alt-fuel-rem').value)||200;
+  const ff=parseFloat(document.getElementById('alt-ff').value)||195;
+  const spd=parseFloat(document.getElementById('alt-spd').value)||130;
+  const res=parseFloat(document.getElementById('alt-res').value)||65;
+  const usable=fr-res;
+  const pos=waypoints.length>0?waypoints[waypoints.length-1]:AEROS[0];
+  const list=AEROS.map(a=>({...a,dist:hav(pos.lat,pos.lon,a.lat,a.lon),fuel:hav(pos.lat,pos.lon,a.lat,a.lon)/spd*ff}))
+    .filter(a=>a.dist>0.5).sort((a,b)=>a.dist-b.dist);
+  let html='';
+  list.forEach(a=>{
+    const ok=a.fuel<=usable;
+    const pct=Math.min(100,Math.max(0,(1-a.fuel/usable)*100));
+    const cat=metarData[a.icao]?.cat;
+    html+=`<div class="alt-card"><div class="alt-top"><span class="alt-icao">${a.icao}</span><span class="alt-dist">${a.dist.toFixed(1)} NM</span><span class="cat ${cat?'cat-'+cat:'cat-UNK'}">${cat||'?'}</span></div>
+      <div style="font-size:11px;color:#3a5e47;margin:2px 0">${a.name}</div>
+      <div class="kv"><span class="k">Fuel req.</span><span class="v ${ok?'ok':'danger'}">${a.fuel.toFixed(0)} KG</span></div>
+      <div class="kv"><span class="k">ETO</span><span class="v">${fmtT(a.dist/spd)}</span></div>
+      <div class="kv"><span class="k">Estado</span><span class="v ${ok?'ok':'danger'}">${ok?'✓ ALCANZABLE':'✗ FUEL INSUF'}</span></div>
+      <div class="alt-fuel-bar"><div class="alt-fuel-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  document.getElementById('alt-cards').innerHTML=html||'<div style="color:#3a5e47;font-size:11px;text-align:center;padding:10px">Sin datos</div>';
+}
+
+// DA
+function calcDA(){
+  const elev=parseFloat(document.getElementById('da-elev').value)||324;
+  const qnh=parseFloat(document.getElementById('da-qnh').value)||1013.25;
+  const oat=parseFloat(document.getElementById('da-oat').value)||15;
+  const pa=elev+(1013.25-qnh)*27.3;
+  const isa=15-(elev/1000)*2;
+  const dev=oat-isa;
+  const da=pa+120*dev;
+  document.getElementById('da-result').innerHTML=`
+    <div class="kv"><span class="k">Pressure Altitude</span><span class="v">${Math.round(pa)} ft</span></div>
+    <div class="kv"><span class="k">ISA Deviation</span><span class="v ${dev>5?'warn':''}">${dev>0?'+':''}${dev.toFixed(1)}°C</span></div>
+    <div class="kv"><span class="k">Density Altitude</span><span class="v ${da>5000?'danger':da>3000?'warn':'ok'}">${Math.round(da)} ft</span></div>`;
+  document.getElementById('oei-da').value=Math.round(da);
+}
+
+// COORD FORMAT CONVERSION
+let coordFmt='DD';
+function setFmt(fmt){
+  coordFmt=fmt;
+  ['DD','DMS','DDM'].forEach(f=>{
+    document.getElementById('fmt-'+f.toLowerCase()).style.background=f===fmt?'var(--green)':'';
+    document.getElementById('fmt-'+f.toLowerCase()).style.color=f===fmt?'#000':'';
+    document.getElementById('coord-'+f.toLowerCase()).style.display=f===fmt?'block':'none';
+  });
+}
+function previewCoord(){
+  const lat=parseFloat(document.getElementById('wp-lat-dd').value);
+  const lon=parseFloat(document.getElementById('wp-lon-dd').value);
+  if(isNaN(lat)||isNaN(lon)){document.getElementById('coord-preview').textContent='';return;}
+  const fmt=v=>{const a=Math.abs(v),d=Math.floor(a),m=Math.floor((a-d)*60),s=((a-d)*3600-m*60).toFixed(1);return `${d}°${m}'${s}"`;}
+  const fmtD=v=>{const a=Math.abs(v),d=Math.floor(a),m=((a-d)*60).toFixed(3);return `${d}°${m}'`;}
+  const pv=document.getElementById('coord-preview');
+  pv.innerHTML=`DD: <b>${lat.toFixed(5)},${lon.toFixed(5)}</b> | DMS: ${fmt(lat)}${lat<0?'S':'N'} ${fmt(lon)}${lon<0?'W':'E'} | DDM: ${fmtD(lat)}${lat<0?'S':'N'} ${fmtD(lon)}${lon<0?'W':'E'}`;
+}
+function dms2dd(){
+  const parse=s=>{const m=s.trim().match(/(\d+)[°\s](\d+)['\'](\d+(?:\.\d+)?)["\"\s]*([NSEWnsew])/);if(!m)return NaN;const v=+m[1]+(+m[2])/60+(+m[3])/3600;return /[SsWw]/.test(m[4])?-v:v;};
+  const lat=parse(document.getElementById('wp-lat-dms').value);
+  const lon=parse(document.getElementById('wp-lon-dms').value);
+  if(!isNaN(lat))document.getElementById('wp-lat-dd').value=lat.toFixed(5);
+  if(!isNaN(lon))document.getElementById('wp-lon-dd').value=lon.toFixed(5);
+  previewCoord();
+}
+function ddm2dd(){
+  const parse=s=>{const m=s.trim().match(/(\d+)[°\s](\d+(?:\.\d+)?)['\'\s]*([NSEWnsew])/);if(!m)return NaN;const v=+m[1]+(+m[2])/60;return /[SsWw]/.test(m[3])?-v:v;};
+  const lat=parse(document.getElementById('wp-lat-ddm').value);
+  const lon=parse(document.getElementById('wp-lon-ddm').value);
+  if(!isNaN(lat))document.getElementById('wp-lat-dd').value=lat.toFixed(5);
+  if(!isNaN(lon))document.getElementById('wp-lon-dd').value=lon.toFixed(5);
+  previewCoord();
+}
+// SAVE/LOAD WAYPOINTS
+function saveWaypoints(){
+  if(!waypoints.length){showToast('Sin waypoints para guardar');return;}
+  localStorage.setItem('carab_wpts_saved',JSON.stringify(waypoints));
+  showToast(`${waypoints.length} waypoints guardados ✓`);
+}
+function loadWaypoints(){
+  const d=localStorage.getItem('carab_wpts_saved');
+  if(!d){showToast('No hay waypoints guardados');return;}
+  waypoints=JSON.parse(d);renderRoute();showToast(`${waypoints.length} waypoints cargados ✓`);
+}
+
+// OEI HOVER HOIST CONFINED AREA — EC135 T3H, IBF, Fig.7 AFM
+// Lookup table: [DA_ft, maxMass_kg_0wind]
+const OEI_TABLE=[
+  [-1500,2970],[-1000,2940],[0,2870],[1000,2800],[2000,2725],
+  [3000,2640],[4000,2550],[5000,2455],[6000,2355],[7000,2250],
+  [8000,2140],[9000,2030],[10000,1920]
+];
+function oeiMaxMass(da_ft, hw_kt){
+  const hw=Math.min(Math.max(hw_kt||0,0),30);
+  // Interpolate from table
+  let mass=OEI_TABLE[OEI_TABLE.length-1][1];
+  for(let i=0;i<OEI_TABLE.length-1;i++){
+    const [da0,m0]=OEI_TABLE[i],[da1,m1]=OEI_TABLE[i+1];
+    if(da_ft>=da0&&da_ft<=da1){mass=m0+(m1-m0)*(da_ft-da0)/(da1-da0);break;}
+    if(da_ft<OEI_TABLE[0][0])mass=OEI_TABLE[0][1];
+  }
+  // Headwind benefit: ~5.5 kg/kt (linear, capped at 30kt)
+  mass += hw * 5.5;
+  return Math.min(mass, H135.mtow);
+}
+function openOEI(){
+  // Auto-fill TOW from W&B
+  const towEl=document.getElementById('wb-tow-big');
+  const tow=parseFloat(towEl?.textContent)||parseFloat(document.getElementById('oei-tow2').value)||2500;
+  document.getElementById('oei-tow2').value=tow;
+  // Auto-fill PA from last waypoint elevation (uses stored wp.elev if available)
+  if(waypoints.length>0){
+    const wp=waypoints[waypoints.length-1];
+    if(wp.elev!=null){
+      document.getElementById('oei-pa').value=wp.elev;
+    } else {
+      const a=AEROS.find(x=>Math.abs(x.lat-wp.lat)<0.05&&Math.abs(x.lon-wp.lon)<0.05);
+      if(a){document.getElementById('oei-pa').value=a.elev;wp.elev=a.elev;}
+      else{fetch(`https://api.open-meteo.com/v1/elevation?latitude=${wp.lat}&longitude=${wp.lon}`)
+        .then(r=>r.json()).then(d=>{
+          if(d.elevation&&d.elevation.length){
+            const e=Math.round(d.elevation[0]);
+            wp.elev=e;
+            document.getElementById('oei-pa').value=e;
+          }
+          calcOEIChart();
+        }).catch(()=>{});}
+    }
+  }
+  document.getElementById('oei-modal').style.display='flex';
+  calcOEIChart();
+}
+function closeOEI(){document.getElementById('oei-modal').style.display='none';}
+async function autoFillOEI(){
+  // Try to get temp from last waypoint via Open-Meteo
+  if(waypoints.length>0){
+    const wp=waypoints[waypoints.length-1];
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${wp.lat}&longitude=${wp.lon}&current=temperature_2m,windspeed_10m,winddirection_10m&wind_speed_unit=kn`);
+      const d=await r.json();
+      if(d.current){
+        document.getElementById('oei-oat').value=Math.round(d.current.temperature_2m);
+        document.getElementById('oei-hw').value=Math.round(d.current.windspeed_10m);
+        showToast(`Temp auto: ${d.current.temperature_2m}°C Viento: ${d.current.windspeed_10m}kt`);
+      }
+    }catch{}
+    // Find elevation of last waypoint from AEROS
+    const a=AEROS.find(x=>Math.abs(x.lat-wp.lat)<0.05&&Math.abs(x.lon-wp.lon)<0.05);
+    if(a)document.getElementById('oei-pa').value=a.elev;
+  }
+  // Auto-fill TOW from W&B
+  const tow=parseFloat(document.getElementById('wb-tow-big')?.textContent);
+  if(tow&&!isNaN(tow))document.getElementById('oei-tow2').value=tow;
+  calcOEIChart();
+}
+let oeiChartInst=null;
+function calcOEIChart(){
+  const oat=parseFloat(document.getElementById('oei-oat').value)||15;
+  const pa=parseFloat(document.getElementById('oei-pa').value)||0;
+  const hw=parseFloat(document.getElementById('oei-hw').value)||0;
+  const tow=parseFloat(document.getElementById('oei-tow2').value)||2500;
+  // ISA OAT at pressure altitude
+  const isa_oat=15-(pa*0.00198);
+  const isa_dev=oat-isa_oat;
+  // Density altitude
+  const da=pa+(120*isa_dev);
+  document.getElementById('oei-da-display').innerHTML=
+    `<span style="color:var(--muted)">ISA OAT:</span> <b style="color:var(--cyan)">${isa_oat.toFixed(1)}°C</b> &nbsp;
+     <span style="color:var(--muted)">ISA Dev:</span> <b style="color:${isa_dev>0?'var(--amber)':'var(--cyan)'}">${isa_dev>0?'+':''}${isa_dev.toFixed(1)}°C</b> &nbsp;
+     <span style="color:var(--muted)">DA:</span> <b style="color:var(--gold)">${Math.round(da)} ft</b>`;
+  const maxMass=oeiMaxMass(da,hw);
+  const ok=tow<=maxMass;
+  document.getElementById('oei-result2').innerHTML=
+    `<span style="color:var(--muted);font-size:10px">Masa máx OEI:</span><br>
+     <span style="color:var(--amber);font-size:18px;font-family:'Orbitron',sans-serif">${Math.round(maxMass)} kg</span><br>
+     <span style="color:var(--muted);font-size:10px">TOW actual:</span> <b style="color:${ok?'var(--green)':'var(--red)'}">${tow} kg</b><br>
+     <b style="color:${ok?'var(--green)':'var(--red)'};font-size:13px">${ok?'✓ HOVER OEI POSIBLE':'✗ EXCEDE LÍMITE OEI'}</b>`;
+  document.getElementById('oei-result2').style.background=ok?'#00e67611':'#ff174411';
+  document.getElementById('oei-result2').style.border=`1px solid ${ok?'var(--green)':'var(--red)'}`;
+  // Draw chart
+  const canvas=document.getElementById('oeiChart');
+  if(!canvas)return;
+  if(oeiChartInst){oeiChartInst.destroy();}
+  const das=OEI_TABLE.map(r=>r[0]);
+  const hw0=OEI_TABLE.map(r=>oeiMaxMass(r[0],0));
+  const hw10=OEI_TABLE.map(r=>oeiMaxMass(r[0],10));
+  const hw20=OEI_TABLE.map(r=>oeiMaxMass(r[0],20));
+  const hw30=OEI_TABLE.map(r=>oeiMaxMass(r[0],30));
+  oeiChartInst=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:das,
+      datasets:[
+        {label:'HW 0 kt',data:hw0,borderColor:'#00e676',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'HW 10 kt',data:hw10,borderColor:'#40c4ff',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'HW 20 kt',data:hw20,borderColor:'#ffd700',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'HW 30 kt',data:hw30,borderColor:'#ff6d00',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'TOW actual',data:das.map(()=>tow),borderColor:ok?'#69f0ae':'#ff1744',borderWidth:2,borderDash:[6,3],pointRadius:0,fill:false},
+        {label:'Posición actual',data:[{x:Math.round(da),y:tow}],type:'scatter',backgroundColor:ok?'#69f0ae':'#ff1744',pointRadius:7,pointStyle:'crossRot'},
+      ]
+    },
+    options:{
+      responsive:false,
+      plugins:{legend:{labels:{color:'#9ee8bf',font:{size:9},boxWidth:14}}},
+      scales:{
+        x:{title:{display:true,text:'Altitud Densidad (ft)',color:'#3a5e47'},ticks:{color:'#3a5e47',font:{size:9}},grid:{color:'#1a3d2444'}},
+        y:{title:{display:true,text:'Masa Máxima (kg)',color:'#3a5e47'},ticks:{color:'#3a5e47',font:{size:9}},grid:{color:'#1a3d2444'},min:1800,max:3000}
+      }
+    }
+  });
+}
+
+// OEI (legacy – now handled by openOEI)
+function calcOEI(){
+  const tow=parseFloat(document.getElementById('oei-tow').value)||2500;
+  const da=parseFloat(document.getElementById('oei-da').value)||500;
+  const ceil=Math.max(0,Math.round(8000-(tow-1800)*0.8-da*0.15));
+  const ok=da<ceil;
+  document.getElementById('oei-result').innerHTML=`
+    <div class="kv"><span class="k">OEI Ceiling est.</span><span class="v ${ok?'ok':'danger'}">${ceil} ft</span></div>
+    <div class="kv"><span class="k">DA actual</span><span class="v">${da} ft</span></div>
+    <div class="kv"><span class="k">OEI HOGE</span><span class="v ${ok?'ok':'danger'}">${ok?'✓ POSIBLE':'✗ NO POSIBLE'}</span></div>
+    <div style="font-size:10px;color:#3a5e47;margin-top:4px">⚠ Estimado. Verificar AFM H135 T3H.</div>`;
+}
+
+// W&B
+// W&B AFM EC135 T3H — loading table per Section 6.3
+// Arms X-STA and Y-BL from AFM loading example
+const WB_ITEMS=[
+  {id:'bew',  labelX:null,  ax:null,  ay:19,   fixed:true},  // BEW: ax from wb-bew-arm
+  {id:'eq',   labelX:null,  ax:null,  ay:null,  fixed:false}, // Mission equip: ax from wb-eq-ax
+  {id:'bag',  labelX:null,  ax:5000,  ay:0,     fixed:false}, // Baggage
+  {id:'p1',   labelX:null,  ax:2439,  ay:390,   fixed:false}, // Pilot
+  {id:'p2',   labelX:null,  ax:2439,  ay:-390,  fixed:false}, // Copilot
+  {id:'paxf', labelX:null,  ax:3331,  ay:0,     fixed:false}, // Fwd pax
+  {id:'paxa', labelX:null,  ax:4243,  ay:0,     fixed:false}, // Aft pax
+  {id:'fuel', labelX:null,  ax:4220,  ay:-4,    fixed:false}, // Fuel
+];
+// Longitudinal CG envelope polygon [STA_mm, Mass_kg] — Fig.6-2 AFM
+const WB_ENV_LONG=[
+  [4120,2980],[4388,2980],[4480,2300],[4540,1900],[4575,1700],[4593,1655],
+  [4120,1655],[4120,2980]
+];
+// Lateral CG limits (Y-BL) — Fig.6-3 AFM: ±100mm approx across all masses
+const WB_LAT_LIM={min:-100,max:100};
+
+let wbLongChartInst=null,wbLatChartInst=null;
+
+function wbGetVal(id){return parseFloat(document.getElementById('wb-'+id)?.value)||0;}
+function wbGetArm(id){return parseFloat(document.getElementById('wb-'+id+'-ax')?.value)||0;}
+
+function calcWB(){
+  const bew=wbGetVal('bew'); const bewAx=wbGetVal('bew-arm');
+  const eq=wbGetVal('eq');   const eqAx=wbGetArm('eq');  const eqAy=wbGetVal('eq-ay');
+  const bag=wbGetVal('bag');
+  const p1=wbGetVal('p1');   const p2=wbGetVal('p2');
+  const paxf=wbGetVal('paxf'); const paxa=wbGetVal('paxa');
+  const fuel=wbGetVal('fuel');
+
+  // Moments X-STA (longitudinal)
+  const momX = bew*bewAx + eq*eqAx + bag*5000 + p1*2439 + p2*2439
+              + paxf*3331 + paxa*4243 + fuel*4220;
+  // Moments Y-BL (lateral)
+  const momY = bew*19 + eq*eqAy + bag*0 + p1*390 + p2*(-390)
+              + paxf*0 + paxa*0 + fuel*(-4);
+
+  const tow = bew+eq+bag+p1+p2+paxf+paxa+fuel;
+  const xsta = tow>0 ? momX/tow : bewAx;  // mm
+  const ybl  = tow>0 ? momY/tow : 19;     // mm
+
+  // Update moment display cells
+  const setCell=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val>0?(val/1000).toFixed(2)+'k':'−'+(Math.abs(val)/1000).toFixed(2)+'k';};
+  document.getElementById('wb-bew-disp').textContent=bew.toFixed(0);
+  setCell('wm-bew',bew*bewAx); setCell('wm-eq',eq*eqAx);
+  setCell('wm-bag',bag*5000);  setCell('wm-p1',p1*2439);
+  setCell('wm-p2',p2*2439);    setCell('wm-pf',paxf*3331);
+  setCell('wm-pa',paxa*4243);  setCell('wm-fuel',fuel*4220);
+
+  // X-STA within envelope check
+  function cgFwdLimitAtMass(m){
+    if(m>=1655)return 4120; return 4120;
+  }
+  function cgAftLimitAtMass(m){
+    // Linear interpolation from envelope polygon right side
+    const pts=[[2980,4388],[2300,4480],[1900,4540],[1700,4575],[1655,4593]];
+    for(let i=0;i<pts.length-1;i++){
+      const [m0,s0]=pts[i],[m1,s1]=pts[i+1];
+      if(m<=m0&&m>=m1)return s0+(s1-s0)*(m0-m)/(m0-m1);
+    }
+    return 4593;
+  }
+  const fwdLim=cgFwdLimitAtMass(tow);
+  const aftLim=cgAftLimitAtMass(tow);
+  const inLong = xsta>=fwdLim && xsta<=aftLim && tow<=H135.mtow;
+  const inLat  = ybl>=WB_LAT_LIM.min && ybl<=WB_LAT_LIM.max;
+  const ok = inLong && inLat;
+
+  const margin=H135.mtow-tow;
+
+  // Update totals row
+  document.getElementById('wb-tow').textContent=tow.toFixed(0)+' kg';
+  document.getElementById('wb-xsta').textContent=xsta.toFixed(0)+' mm';
+  document.getElementById('wb-ybl').textContent=(ybl>=0?'+':'')+ybl.toFixed(1)+' mm';
+
+  // Summary boxes
+  document.getElementById('wb-tow-big').textContent=tow.toFixed(0)+' kg';
+  const me=document.getElementById('wb-margin');
+  me.textContent=`MTOW margin: ${margin.toFixed(0)} kg`;
+  me.style.color=margin>200?'var(--green)':margin>0?'var(--amber)':'var(--red)';
+
+  const sb=document.getElementById('wb-status-box');
+  const st=document.getElementById('wb-status');
+  const sv=document.getElementById('wb-cg-vals');
+  st.textContent=ok?'✓ DENTRO ENV.':'✗ FUERA ENV.';
+  st.style.color=ok?'var(--green)':'var(--red)';
+  sv.innerHTML=`X-STA: <b>${xsta.toFixed(0)}mm</b> [${fwdLim}–${aftLim.toFixed(0)}]<br>Y-BL: <b>${(ybl>=0?'+':'')+ybl.toFixed(1)}mm</b> [±100]`;
+  sb.style.border=`1px solid ${ok?'var(--green)':'var(--red)'}`;
+
+  // DRAW CHARTS
+  drawWBLong(xsta,tow,fwdLim,aftLim);
+  drawWBLat(ybl,tow);
+}
+
+function drawWBLong(xsta,tow,fwdLim,aftLim){
+  const canvas=document.getElementById('wbLongChart');
+  if(!canvas)return;
+  canvas.height=160;
+  if(wbLongChartInst){wbLongChartInst.destroy();wbLongChartInst=null;}
+  // Envelope polygon as dataset
+  const envPts=WB_ENV_LONG.map(([x,y])=>({x,y}));
+  wbLongChartInst=new Chart(canvas,{
+    type:'scatter',
+    width:280,height:160,
+    data:{
+      datasets:[
+        {label:'Envolvente',data:envPts,type:'line',borderColor:'#00e676',borderWidth:1.5,
+         fill:true,backgroundColor:'#00e67614',pointRadius:0,tension:0},
+        {label:'TOW/CG',data:[{x:xsta,y:tow}],pointRadius:9,pointStyle:'crossRot',
+         backgroundColor:tow<=2980&&xsta>=fwdLim&&xsta<=aftLim?'#69f0ae':'#ff1744',
+         borderColor:tow<=2980&&xsta>=fwdLim&&xsta<=aftLim?'#69f0ae':'#ff1744',borderWidth:2},
+      ]
+    },
+    options:{
+      responsive:false, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#3a5e47',font:{size:8},boxWidth:10}}},
+      scales:{
+        x:{title:{display:true,text:'X-STA (mm)',color:'#3a5e47',font:{size:9}},
+           min:4050,max:4650,ticks:{color:'#3a5e47',font:{size:8},stepSize:100},grid:{color:'#1a3d2422'}},
+        y:{title:{display:true,text:'Masa (kg)',color:'#3a5e47',font:{size:9}},
+           min:1400,max:3100,ticks:{color:'#3a5e47',font:{size:8},stepSize:400},grid:{color:'#1a3d2422'}}
+      }
+    }
+  });
+}
+function drawWBLat(ybl,tow){
+  const canvas=document.getElementById('wbLatChart');
+  if(!canvas)return;
+  canvas.height=110;
+  if(wbLatChartInst){wbLatChartInst.destroy();wbLatChartInst=null;}
+  const envLat=[{x:-100,y:1655},{x:-100,y:2980},{x:100,y:2980},{x:100,y:1655},{x:-100,y:1655}];
+  wbLatChartInst=new Chart(canvas,{
+    type:'scatter',
+    width:280,height:110,
+    data:{
+      datasets:[
+        {label:'Envolvente Y-BL',data:envLat,type:'line',borderColor:'#40c4ff',borderWidth:1.5,
+         fill:true,backgroundColor:'#40c4ff14',pointRadius:0,tension:0},
+        {label:'CG Lateral',data:[{x:ybl,y:tow}],pointRadius:9,pointStyle:'crossRot',
+         backgroundColor:Math.abs(ybl)<=100&&tow<=2980?'#69f0ae':'#ff1744',
+         borderColor:Math.abs(ybl)<=100&&tow<=2980?'#69f0ae':'#ff1744',borderWidth:2},
+      ]
+    },
+    options:{
+      responsive:false, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#3a5e47',font:{size:8},boxWidth:10}}},
+      scales:{
+        x:{title:{display:true,text:'Y-BL (mm)',color:'#3a5e47',font:{size:9}},
+           min:-150,max:150,ticks:{color:'#3a5e47',font:{size:8},stepSize:50},grid:{color:'#1a3d2422'}},
+        y:{title:{display:true,text:'Masa (kg)',color:'#3a5e47',font:{size:9}},
+           min:1400,max:3100,ticks:{color:'#3a5e47',font:{size:8},stepSize:400},grid:{color:'#1a3d2422'}}
+      }
+    }
+  });
+}
+
+// FTL
+function calcFTL(){
+  const mis=parseFloat(document.getElementById('ftl-mission').value)||0;
+  const defs=[
+    {id:'ftl-day',lim:FTL_LIM.day,label:'DIARIO'},
+    {id:'ftl-week',lim:FTL_LIM.week,label:'SEMANAL'},
+    {id:'ftl-month',lim:FTL_LIM.month,label:'MENSUAL'},
+    {id:'ftl-year',lim:FTL_LIM.year,label:'ANUAL'},
+  ];
+  let html='';
+  defs.forEach(d=>{
+    const cur=parseFloat(document.getElementById(d.id).value)||0;
+    const proj=cur+mis;
+    const pct=Math.min(100,proj/d.lim*100);
+    const cls=pct>95?'danger':pct>80?'warn':'';
+    html+=`<div class="prog-wrap">
+      <div class="prog-label"><span>${d.label}</span><span style="color:${pct>95?'#ff1744':pct>80?'#ffab00':'#69f0ae'}">${proj.toFixed(1)}/${d.lim}HR</span></div>
+      <div class="prog-bg"><div class="prog-fill ${cls}" style="width:${pct}%"></div></div>
+      <div style="font-size:10px;color:#3a5e47;margin-top:2px">Restante: ${Math.max(0,d.lim-cur).toFixed(1)} HR · Misión: ${mis}HR</div>
+    </div>`;
+  });
+  document.getElementById('ftl-bars').innerHTML=html;
+}
+
+// SAR
+function clearSAR(){if(sarLayer){map.removeLayer(sarLayer);sarLayer=null;}}
+function drawSAR(){
+  clearSAR();
+  const clat=parseFloat(document.getElementById('sar-lat').value);
+  const clon=parseFloat(document.getElementById('sar-lon').value);
+  const sp=parseFloat(document.getElementById('sar-spacing').value)||0.5;
+  const legs=parseInt(document.getElementById('sar-legs').value)||4;
+  const pat=document.getElementById('sar-pattern').value;
+  if(isNaN(clat)||isNaN(clon)){showToast('Coordenadas SAR inválidas');return;}
+  sarLayer=L.layerGroup();
+  const d2r=Math.PI/180,nm=1/60,cosLat=Math.cos(clat*d2r)||1;
+  let pts=[],tot=0;
+  if(pat==='square'){
+    let cur=[clat,clon];pts.push([...cur]);
+    const dirs=[[0,1],[1,0],[0,-1],[-1,0]];
+    let ll=sp,turns=0;
+    for(let i=0;i<legs*2;i++){
+      const dir=dirs[i%4];
+      const nx=[cur[0]+dir[0]*ll*nm,cur[1]+dir[1]*ll*nm/cosLat];
+      pts.push([...nx]);tot+=ll;cur=nx;turns++;
+      if(turns%2===0)ll+=sp;
+    }
+    document.getElementById('si-pat').textContent='Cuadrado Expansivo';
+  } else if(pat==='parallel'){
+    for(let i=0;i<legs;i++){
+      const off=(i*sp-(legs-1)*sp/2)*nm/cosLat;
+      if(i%2===0){pts.push([clat-sp*legs/2*nm,clon+off]);pts.push([clat+sp*legs/2*nm,clon+off]);}
+      else{pts.push([clat+sp*legs/2*nm,clon+off]);pts.push([clat-sp*legs/2*nm,clon+off]);}
+      tot+=sp*legs;
+    }
+    document.getElementById('si-pat').textContent='Pistas Paralelas';
+  } else {
+    for(let i=0;i<legs;i++){
+      const ang=i*(360/legs)*d2r,r=sp*2;
+      pts.push([clat,clon]);pts.push([clat+Math.cos(ang)*r*nm,clon+Math.sin(ang)*r*nm/cosLat]);pts.push([clat,clon]);
+      tot+=r*2;
+    }
+    document.getElementById('si-pat').textContent='Sector Radiante';
+  }
+  L.polyline(pts,{color:'#ffab00',weight:2,dashArray:'4,3',opacity:0.9}).addTo(sarLayer);
+  L.circleMarker([clat,clon],{radius:8,color:'#ff1744',fillColor:'#ff174488',fillOpacity:0.8}).addTo(sarLayer);
+  sarLayer.addTo(map);
+  map.setView([clat,clon],10);
+  document.getElementById('si-area').textContent=`~${((sp*legs)**2).toFixed(1)} NM²`;
+  document.getElementById('si-dist').textContent=`${tot.toFixed(1)} NM`;
+  const spd=parseFloat(document.getElementById('fuel-spd').value)||130;
+  document.getElementById('si-time').textContent=fmtT(tot/spd);
+}
+
+// FPL
+function genFPL(){
+  const reg=document.getElementById('fpl-reg').value.toUpperCase()||'CABMA';
+  const rules=document.getElementById('fpl-rules').value;
+  const spd=document.getElementById('fpl-spd').value.toUpperCase()||'N0130';
+  const lev=document.getElementById('fpl-lev').value.toUpperCase()||'VFR';
+  const dt=document.getElementById('fpl-dep-time').value||'1200';
+  const adep=document.getElementById('fpl-adep').value.toUpperCase()||'SCTL';
+  const ades=document.getElementById('fpl-adest').value.toUpperCase()||'SCEL';
+  const altn=document.getElementById('fpl-altn').value.toUpperCase()||'SCCH';
+  const other=document.getElementById('fpl-other').value||'DOF/260701';
+  let rte='DCT';
+  if(waypoints.length>2){rte=waypoints.slice(1,-1).map(w=>{const a=AEROS.find(x=>Math.abs(x.lat-w.lat)<0.01&&Math.abs(x.lon-w.lon)<0.01);return a?a.icao:`${Math.abs(w.lat).toFixed(2)}${w.lat<0?'S':'N'}${Math.abs(w.lon).toFixed(2)}${w.lon<0?'W':'E'}`}).join(' DCT ');}
+  let td=0;for(let i=1;i<waypoints.length;i++)td+=hav(waypoints[i-1].lat,waypoints[i-1].lon,waypoints[i].lat,waypoints[i].lon);
+  const spdN=parseInt(spd.replace(/\D/g,''))||130;
+  const th=td>0?td/spdN:1.5;
+  const th_h=Math.floor(th),th_m=Math.round((th%1)*60);
+  const fh=(parseFloat(document.getElementById('fuel-init').value)||560)/195;
+  const fh_h=Math.floor(fh),fh_m=Math.round((fh%1)*60);
+  document.getElementById('fpl-out').textContent=
+`(FPL
+-${reg}-${rules}G
+-H-B2/C
+-${spd}${lev}
+-${adep}${dt}
+-${rte}
+-${ades}${String(th_h).padStart(2,'0')}${String(th_m).padStart(2,'0')} ${altn}
+-${other}
+EET/${adep}0000 ${ades}${String(th_h).padStart(2,'0')}${String(th_m).padStart(2,'0')}
+ENDURANCE/${String(fh_h).padStart(2,'0')}${String(fh_m).padStart(2,'0')}
+POB/002
+PER/A
+RMK/CARABINEROS DE CHILE - SECCION AEREA TALCA
+)`;
+}
+function copyFPL(){navigator.clipboard.writeText(document.getElementById('fpl-out').textContent).then(()=>showToast('FPL copiado'));}
+
+// METAR
+function assessCat(m){
+  const v=m.visib?parseFloat(m.visib):null;
+  const c=m.clouds?.reduce((mn,cl)=>cl.cover&&['BKN','OVC','OVX'].includes(cl.cover)?Math.min(mn,cl.base??999):mn,999);
+  let vc='VFR',cc='VFR';
+  if(v!==null&&!isNaN(v)){if(v<1.6)vc='LIFR';else if(v<5)vc='IFR';else if(v<8)vc='MVFR';}
+  if(c!==undefined&&c<999){if(c<150)cc='LIFR';else if(c<300)cc='IFR';else if(c<500)cc='MVFR';}
+  const ord=['LIFR','IFR','MVFR','VFR'];return ord[Math.min(ord.indexOf(vc),ord.indexOf(cc))];
+}
+
+async function loadMETAR(){
+  // Build list: all AEROS + any route waypoints matching SC* codes
+  const ids=[...new Set([...AEROS.map(a=>a.icao),...waypoints.map(w=>w.name?.split(' ')[0]).filter(s=>s&&/^SC[A-Z]{2}$/.test(s))])].filter(s=>/^SC/.test(s)).join(',');
+  document.getElementById('metar-list').innerHTML='<div style="color:#3a5e47;font-size:11px;text-align:center;padding:10px"><span class="spin"></span> Cargando METAR DGAC/MeteoCHile...</div>';
+  try{
+    const r=await fetch(`https://aviationweather.gov/api/data/metar?ids=${ids}&format=json&hours=2`);
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    if(!d.length)throw 0;
+    renderMETAR(d); updateTicker();
+  }catch{loadDemoMETAR();}
+}
+
+function renderMETAR(data){
+  const el=document.getElementById('metar-list');el.innerHTML='';
+  data.forEach(m=>{
+    const cat=assessCat(m);
+    metarData[m.icaoId]={cat,raw:m.rawOb,temp:m.temp,wspd:m.wspd,wdir:m.wdir,vis:m.visib};
+    const div=document.createElement('div');div.className='metar-card';
+    div.innerHTML=`<div class="mc-top"><span class="mc-icao">${m.icaoId}</span><span class="cat cat-${cat}">${cat}</span><span style="font-size:10px;color:#3a5e47">${(m.reportTime||'').slice(11,16)}Z</span></div>
+      <div class="mc-raw">${m.rawOb||'--'}</div>
+      <div class="mc-vals">
+        <div class="mc-kv"><span class="mk">WIND</span><span class="mv">${m.wdir||'---'}°/${m.wspd||'--'}KT</span></div>
+        <div class="mc-kv"><span class="mk">VIS</span><span class="mv">${m.visib||'--'}KM</span></div>
+        <div class="mc-kv"><span class="mk">T/DP</span><span class="mv">${m.temp??'--'}/${m.dewp??'--'}°C</span></div>
+        <div class="mc-kv"><span class="mk">QNH</span><span class="mv">${m.altim||'--'}hPa</span></div>
+      </div>`;
+    div.onclick=()=>{const a=AEROS.find(x=>x.icao===m.icaoId);if(a)openMeteogram(a.lat,a.lon,`${m.icaoId} ${a.name}`);};
+    el.appendChild(div);
+  });
+}
+
+function updateTicker(){
+  const el=document.getElementById('ticker-content');
+  if(!el)return;
+  const now=new Date();
+  const utc=now.toUTCString().split(' ').slice(1,5).join(' ');
+  let items=[`⏱ ${utc}Z`];
+  // Add METARs
+  Object.values(metarData).forEach(m=>{
+    if(m.raw)items.push(`${m.raw}`);
+  });
+  // Add route info
+  if(waypoints.length>1){
+    const n=waypoints.length;
+    items.push(`▶ RUTA ACTIVA: ${n} WPT — ${waypoints[0].name}→${waypoints[n-1].name}`);
+  }
+  items.push('▶ CARABINEROS DE CHILE · PREFECTURA AÉREA · SECCIÓN TALCA · EC135 T3H');
+  items.push('▶ Frecuencia guardia emergencia: 121.5 MHz · DGAC ACC Centro: 127.7 MHz');
+  items.push('▶ NOTAM: aipchile.dgac.gob.cl · MET: meteochile.gob.cl · AIP: aipchile.dgac.gob.cl');
+  el.textContent=items.join('  ●  ');
+  // Restart animation
+  el.style.animation='none';
+  el.offsetHeight;
+  el.style.animation='ticker-move 90s linear infinite';
+}
+function loadDemoMETAR(){
+  const d=[
+    {icaoId:'SCTL',rawOb:'SCTL 011200Z 18006KT 9999 FEW020 15/10 Q1016',temp:15,dewp:10,wdir:180,wspd:6,visib:9999,altim:1016,reportTime:'2026-07-01T12:00:00Z',clouds:[{cover:'FEW',base:2000}]},
+    {icaoId:'SCEL',rawOb:'SCEL 011200Z 24010KT 8000 SCT015 12/08 Q1014',temp:12,dewp:8,wdir:240,wspd:10,visib:8000,altim:1014,reportTime:'2026-07-01T12:00:00Z',clouds:[{cover:'SCT',base:1500}]},
+    {icaoId:'SCCC',rawOb:'SCCC 011200Z 21008KT 6000 BKN010 09/07 Q1013',temp:9,dewp:7,wdir:210,wspd:8,visib:6000,altim:1013,reportTime:'2026-07-01T12:00:00Z',clouds:[{cover:'BKN',base:1000}]},
+    {icaoId:'SCCH',rawOb:'SCCH 011200Z 19005KT 9999 SKC 14/05 Q1015',temp:14,dewp:5,wdir:190,wspd:5,visib:9999,altim:1015,reportTime:'2026-07-01T12:00:00Z',clouds:[]},
+    {icaoId:'SCTE',rawOb:'SCTE 011200Z 23012KT 5000 OVC008 07/06 Q1012',temp:7,dewp:6,wdir:230,wspd:12,visib:5000,altim:1012,reportTime:'2026-07-01T12:00:00Z',clouds:[{cover:'OVC',base:800}]},
+    {icaoId:'SCVD',rawOb:'SCVD 011200Z 20015KT 3000 OVC005 06/05 Q1011',temp:6,dewp:5,wdir:200,wspd:15,visib:3000,altim:1011,reportTime:'2026-07-01T12:00:00Z',clouds:[{cover:'OVC',base:500}]},
+  ];
+  renderMETAR(d);showToast('DEMO — METAR offline');
+}
+
+// NOTAM
+async function loadNOTAM(){
+  const el=document.getElementById('notam-list');
+  el.innerHTML='<div style="color:#3a5e47;font-size:11px;text-align:center;padding:10px"><span class="spin"></span> Cargando NOTAMs...</div>';
+  try{
+    const r=await fetch('https://aviationweather.gov/api/data/notam?icaoLocation=SCTL&format=json');
+    const d=await r.json();if(!d.length)throw 0;
+    el.innerHTML='';
+    d.slice(0,8).forEach(n=>{
+      const div=document.createElement('div');div.className='notam-item';
+      div.innerHTML=`<div class="ni-id">${n.notamID||n.id||'NOTAM'} — ${n.icaoLocation||''}</div><div>${(n.notamTranslation?.[0]?.simpleText||n.traditionalMessage||n.message||'Sin texto').slice(0,200)}</div>`;
+      el.appendChild(div);
+    });
+  }catch{
+    el.innerHTML=`<div class="notam-item"><div class="ni-id">A1234/26 — SCTL</div><div>SCTL RWY 18/36 CLOSED FOR MAINTENANCE 0800-1800 UTC DAILY UNTIL JUL 15 2026.</div></div><div class="notam-item" style="margin-top:4px"><div class="ni-id">A1235/26 — SCEL</div><div>ILS RWY 17L UNSERVICEABLE DUE TECHNICAL MAINTENANCE.</div></div><div class="notam-none">[DEMO — Sin conexión]</div>`;
+  }
+}
+
+// METEOGRAM
+async function openMeteogram(lat,lon,label){
+  const popup=document.getElementById('meteo-popup');
+  popup.style.display='flex';
+  document.getElementById('meteo-loc').textContent='📍 '+label;
+  const canvas=document.getElementById('meteoChart');
+  if(meteoChartObj){meteoChartObj.destroy();meteoChartObj=null;}
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,windspeed_10m,precipitation,cloudcover&wind_speed_unit=kn&timezone=auto&forecast_days=2`);
+    const d=await r.json();
+    const times=d.hourly.time.slice(0,36).map(t=>t.slice(11,16));
+    meteoChartObj=new Chart(canvas,{
+      type:'bar',
+      data:{
+        labels:times,
+        datasets:[
+          {type:'line',label:'T°C',data:d.hourly.temperature_2m.slice(0,36),borderColor:'#ffab00',backgroundColor:'transparent',tension:0.3,yAxisID:'yT',pointRadius:0,borderWidth:1.5},
+          {type:'line',label:'Viento KT',data:d.hourly.windspeed_10m.slice(0,36),borderColor:'#00e5ff',backgroundColor:'transparent',tension:0.3,yAxisID:'yW',pointRadius:0,borderWidth:1.5},
+          {type:'bar',label:'Lluvia mm',data:d.hourly.precipitation.slice(0,36),backgroundColor:'#40c4ff44',borderColor:'#40c4ff',yAxisID:'yP',borderWidth:1},
+          {type:'line',label:'Nubes %',data:d.hourly.cloudcover.slice(0,36),borderColor:'#9e9e9e66',backgroundColor:'#9e9e9e11',tension:0.3,yAxisID:'yC',fill:true,pointRadius:0,borderWidth:1},
+        ]
+      },
+      options:{
+        animation:false,responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:'#9ee8bf',font:{size:9},boxWidth:10,padding:8}}},
+        scales:{
+          x:{ticks:{color:'#3a5e47',font:{size:8},maxTicksLimit:12,maxRotation:0},grid:{color:'#1a3d2422'}},
+          yT:{position:'left',ticks:{color:'#ffab00',font:{size:8}},grid:{color:'#1a3d2422'},title:{display:true,text:'°C',color:'#ffab0088',font:{size:8}}},
+          yW:{position:'right',ticks:{color:'#00e5ff',font:{size:8}},grid:{display:false},title:{display:true,text:'KT',color:'#00e5ff88',font:{size:8}}},
+          yP:{display:false},yC:{display:false}
+        }
+      }
+    });
+  }catch{
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#3a5e47';ctx.font='12px Share Tech Mono';
+    ctx.fillText('Sin datos meteorológicos disponibles',20,80);
+  }
+}
+
+
+// OEI OGE — HOVER CEILING OUT OF GROUND EFFECT, Fig.45 AFM EC135T3H
+// Lookup table: [DA_ft, maxMass_kg_0wind] — ISA conditions
+const OGE_TABLE=[
+  [-1500,2960],[-1000,2940],[0,2870],[1000,2820],[2000,2760],
+  [3000,2695],[4000,2625],[5000,2545],[6000,2460],[7000,2365],
+  [8000,2260],[9000,2145],[10000,2020],[12000,1760],[14000,1490],[16000,1220]
+];
+function ogeMaxMass(da_ft, hw_kt){
+  const hw=Math.min(Math.max(hw_kt||0,0),30);
+  let mass=OGE_TABLE[OGE_TABLE.length-1][1];
+  for(let i=0;i<OGE_TABLE.length-1;i++){
+    const [da0,m0]=OGE_TABLE[i],[da1,m1]=OGE_TABLE[i+1];
+    if(da_ft>=da0&&da_ft<=da1){mass=m0+(m1-m0)*(da_ft-da0)/(da1-da0);break;}
+    if(da_ft<OGE_TABLE[0][0])mass=OGE_TABLE[0][1];
+  }
+  mass += hw*4.2; // headwind benefit per AFM Fig.45 (unfactored)
+  return Math.min(mass, H135.mtow);
+}
+function openOEIoge(){
+  const towEl=document.getElementById('wb-tow-big');
+  const tow=parseFloat(towEl?.textContent)||parseFloat(document.getElementById('oge-tow').value)||2500;
+  document.getElementById('oge-tow').value=tow;
+  // Auto-fill PA from last waypoint elevation (uses stored wp.elev if available)
+  if(waypoints.length>0){
+    const wp=waypoints[waypoints.length-1];
+    if(wp.elev!=null){
+      document.getElementById('oge-pa').value=wp.elev;
+    } else {
+      const a=AEROS.find(x=>Math.abs(x.lat-wp.lat)<0.05&&Math.abs(x.lon-wp.lon)<0.05);
+      if(a){document.getElementById('oge-pa').value=a.elev;wp.elev=a.elev;}
+      else{fetch(`https://api.open-meteo.com/v1/elevation?latitude=${wp.lat}&longitude=${wp.lon}`)
+        .then(r=>r.json()).then(d=>{
+          if(d.elevation&&d.elevation.length){
+            const e=Math.round(d.elevation[0]);
+            wp.elev=e;
+            document.getElementById('oge-pa').value=e;
+          }
+          calcOGEChart();
+        }).catch(()=>{});}
+    }
+  }
+  document.getElementById('oei-oge-modal').style.display='flex';
+  calcOGEChart();
+}
+function closeOEIoge(){document.getElementById('oei-oge-modal').style.display='none';}
+async function autoFillOGE(){
+  if(waypoints.length>0){
+    const wp=waypoints[waypoints.length-1];
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${wp.lat}&longitude=${wp.lon}&current=temperature_2m,windspeed_10m&wind_speed_unit=kn`);
+      const d=await r.json();
+      if(d.current){
+        document.getElementById('oge-oat').value=Math.round(d.current.temperature_2m);
+        document.getElementById('oge-hw').value=Math.round(d.current.windspeed_10m);
+        showToast(`Temp: ${d.current.temperature_2m}°C · Viento: ${d.current.windspeed_10m}kt`);
+      }
+    }catch{}
+    const a=AEROS.find(x=>Math.abs(x.lat-wp.lat)<0.05&&Math.abs(x.lon-wp.lon)<0.05);
+    if(a)document.getElementById('oge-pa').value=a.elev;
+  }
+  const tow=parseFloat(document.getElementById('wb-tow-big')?.textContent);
+  if(tow&&!isNaN(tow))document.getElementById('oge-tow').value=tow;
+  calcOGEChart();
+}
+let ogeChartInst=null;
+function calcOGEChart(){
+  const oat=parseFloat(document.getElementById('oge-oat').value)||15;
+  const pa=parseFloat(document.getElementById('oge-pa').value)||0;
+  const hw=parseFloat(document.getElementById('oge-hw').value)||0;
+  const tow=parseFloat(document.getElementById('oge-tow').value)||2500;
+  const isa_oat=15-(pa*0.00198);
+  const isa_dev=oat-isa_oat;
+  const da=pa+(120*isa_dev);
+  document.getElementById('oge-da-display').innerHTML=
+    `<span style="color:var(--muted)">ISA OAT:</span> <b style="color:var(--cyan)">${isa_oat.toFixed(1)}°C</b> &nbsp;
+     <span style="color:var(--muted)">ISA Dev:</span> <b style="color:${isa_dev>0?'var(--amber)':'var(--cyan)'}">${isa_dev>0?'+':''}${isa_dev.toFixed(1)}°C</b> &nbsp;
+     <span style="color:var(--muted)">DA:</span> <b style="color:var(--gold)">${Math.round(da)} ft</b>`;
+  const maxMass=ogeMaxMass(da,hw);
+  const ok=tow<=maxMass;
+  const res=document.getElementById('oge-result');
+  res.innerHTML=
+    `<span style="color:var(--muted);font-size:10px">Masa máx OGE OEI:</span><br>
+     <span style="color:var(--cyan);font-size:18px;font-family:'Orbitron',sans-serif">${Math.round(maxMass)} kg</span><br>
+     <span style="color:var(--muted);font-size:10px">TOW actual:</span> <b style="color:${ok?'var(--green)':'var(--red)'}">${tow} kg</b><br>
+     <b style="color:${ok?'var(--green)':'var(--red)'};font-size:13px">${ok?'✓ OEI OGE POSIBLE':'✗ EXCEDE LÍMITE OGE'}</b>`;
+  res.style.background=ok?'#00e67611':'#ff174411';
+  res.style.border=`1px solid ${ok?'var(--green)':'var(--red)'}`;
+  const canvas=document.getElementById('ogeChart');
+  if(!canvas)return;
+  if(ogeChartInst)ogeChartInst.destroy();
+  const das=OGE_TABLE.map(r=>r[0]);
+  ogeChartInst=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:das,
+      datasets:[
+        {label:'HW 0 kt',data:das.map(d=>ogeMaxMass(d,0)),borderColor:'#00e676',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'HW 10 kt',data:das.map(d=>ogeMaxMass(d,10)),borderColor:'#40c4ff',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'HW 20 kt',data:das.map(d=>ogeMaxMass(d,20)),borderColor:'#ffd700',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'HW 30 kt',data:das.map(d=>ogeMaxMass(d,30)),borderColor:'#ff6d00',borderWidth:1.5,pointRadius:0,fill:false},
+        {label:'TOW actual',data:das.map(()=>tow),borderColor:ok?'#69f0ae':'#ff1744',borderWidth:2,borderDash:[6,3],pointRadius:0,fill:false},
+        {label:'Posición',data:[{x:Math.round(da),y:tow}],type:'scatter',backgroundColor:ok?'#69f0ae':'#ff1744',pointRadius:7,pointStyle:'crossRot'},
+      ]
+    },
+    options:{
+      responsive:false,
+      plugins:{legend:{labels:{color:'#3a8a8a',font:{size:9},boxWidth:14}}},
+      scales:{
+        x:{title:{display:true,text:'Altitud Densidad (ft)',color:'#3a5e6e'},ticks:{color:'#3a5e6e',font:{size:9}},grid:{color:'#0a2a3244'}},
+        y:{title:{display:true,text:'Masa Máxima (kg)',color:'#3a5e6e'},ticks:{color:'#3a5e6e',font:{size:9}},grid:{color:'#0a2a3244'},min:1100,max:3000}
+      }
+    }
+  });
+}
+
+// OPEN METEOGRAM AT LAST WAYPOINT
+function openMeteoLastWpt(){
+  if(waypoints.length===0){showToast('Añade waypoints primero');return;}
+  const wp=waypoints[waypoints.length-1];
+  openMeteogram(wp.lat,wp.lon,wp.name||`WPT${waypoints.length}`);
+}
+// WINDY
+function toggleWindy(tog){
+  tog.classList.toggle('on');
+  const wf=document.getElementById('windy-float');
+  if(tog.classList.contains('on')){wf.style.display='flex';wf.style.flexDirection='column';syncWindy();}
+  else{wf.style.display='none';}
+}
+function closeWindy(){document.getElementById('windy-float').style.display='none';document.getElementById('tog-windy').classList.remove('on');}
+function syncWindy(){
+  const c=map.getCenter(),z=Math.max(5,map.getZoom()-1);
+  document.getElementById('windy-iframe').src=`https://embed.windy.com/embed2.html?lat=${c.lat.toFixed(2)}&lon=${c.lng.toFixed(2)}&zoom=${z}&level=surface&overlay=wind&product=ecmwf&menu=&message=true&marker=true&calendar=now&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1`;
+}
+
+// SIGMET
+async function toggleSIGMET(tog){
+  tog.classList.toggle('on');
+  if(!tog.classList.contains('on')){if(sigmetLayer){map.removeLayer(sigmetLayer);sigmetLayer=null;}document.getElementById('sigmet-info').style.display='none';return;}
+  sigmetLayer=L.layerGroup().addTo(map);
+  try{
+    const r=await fetch('https://aviationweather.gov/api/data/sigmet?hazard=TURB,ICE,MTW&type=sigmet&region=pa&format=json');
+    const d=await r.json();
+    if(d.length){d.forEach(s=>{if(s.coords){const pts=s.coords.split(' ').map(c=>{const[a,b]=c.split(',');return[parseFloat(a),parseFloat(b)];}).filter(p=>!isNaN(p[0]));if(pts.length>2)L.polygon(pts,{color:'#ffab00',fillColor:'#ffab0022',weight:2,dashArray:'6,3'}).addTo(sigmetLayer).bindPopup(`<b style="color:#ffab00">${s.hazard||'SIGMET'}</b><br>${(s.rawAirSigmet||'').slice(0,200)}`);}}); document.getElementById('sigmet-info').style.display='block';}
+  }catch{
+    L.polygon([[-34,-72],[-34,-69],[-37,-69],[-37,-72]],{color:'#ffab00',fillColor:'#ffab0018',weight:2,dashArray:'6,3'}).addTo(sigmetLayer).bindPopup('<b style="color:#ffab00">SIGMET DEMO</b><br>MOD TURB FL080-FL180');
+    document.getElementById('sigmet-info').style.display='block';
+  }
+}
+
+// RESTRICTED
+function toggleRestricted(tog){
+  tog.classList.toggle('on');
+  if(!tog.classList.contains('on')){if(restrictedLayer){map.removeLayer(restrictedLayer);restrictedLayer=null;}return;}
+  restrictedLayer=L.layerGroup().addTo(map);
+  [
+    {name:'R-CH01 Santiago CTR',c:[[-33.2,-70.9],[-33.2,-70.6],[-33.6,-70.6],[-33.6,-70.9]],col:'#ff1744'},
+    {name:'D-CH10 Zona Maniobras',c:[[-35.0,-71.8],[-35.0,-71.4],[-35.8,-71.4],[-35.8,-71.8]],col:'#ffab00'},
+    {name:'P-CH05 Zona Prohibida',c:[[-34.8,-70.5],[-34.8,-70.2],[-35.1,-70.2],[-35.1,-70.5]],col:'#ce93d8'},
+  ].forEach(z=>L.polygon(z.c,{color:z.col,fillColor:z.col+'22',weight:1.5,dashArray:'5,3'}).addTo(restrictedLayer).bindPopup(`<b style="color:${z.col}">${z.name}</b><br><small style="color:#3a5e47">⚠ Verificar AIP Chile DGAC</small>`));
+}
+
+// WIND BARBS
+async function toggleBarbs(tog){
+  tog.classList.toggle('on');
+  if(!tog.classList.contains('on')){if(barbsLayer){map.removeLayer(barbsLayer);barbsLayer=null;}return;}
+  barbsLayer=L.layerGroup().addTo(map);
+  for(const pt of AEROS.slice(0,4)){
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pt.lat}&longitude=${pt.lon}&current=windspeed_10m,winddirection_10m&wind_speed_unit=kn&timezone=auto`);
+      const d=await r.json();
+      const s=d.current?.windspeed_10m||0,dir=d.current?.winddirection_10m||0;
+      L.marker([pt.lat,pt.lon],{icon:L.divIcon({html:`<div style="transform:rotate(${dir}deg);font-size:20px;color:#00e5ff;text-shadow:0 0 6px #00e5ff88;line-height:1">↑</div><div style="font-family:Orbitron,sans-serif;font-size:8px;color:#00e5ff;text-align:center">${Math.round(s)}KT</div>`,iconSize:[30,30],iconAnchor:[15,15],className:''})}).addTo(barbsLayer);
+    }catch{}
+  }
+}
+
+// DRAGGABLE
+function makeDraggable(el,handle){
+  let ox=0,oy=0,ex=0,ey=0;
+  handle.addEventListener('mousedown',e=>{
+    e.preventDefault();ex=e.clientX;ey=e.clientY;
+    function drag(e){
+      ox=ex-e.clientX;oy=ey-e.clientY;ex=e.clientX;ey=e.clientY;
+      const wr=document.getElementById('mapwrap').getBoundingClientRect(),er=el.getBoundingClientRect();
+      let nx=er.left-wr.left-ox,ny=er.top-wr.top-oy;
+      nx=Math.max(0,Math.min(wr.width-er.width,nx));ny=Math.max(0,Math.min(wr.height-er.height,ny));
+      el.style.right='auto';el.style.bottom='auto';el.style.left=nx+'px';el.style.top=ny+'px';
+    }
+    document.addEventListener('mousemove',drag);
+    document.addEventListener('mouseup',()=>document.removeEventListener('mousemove',drag),{once:true});
+  });
+}
+makeDraggable(document.getElementById('windy-float'),document.getElementById('windy-header'));
+makeDraggable(document.getElementById('meteo-popup'),document.getElementById('meteo-header'));
+
+// TOAST
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// INIT
+loadMETAR(); setTimeout(updateTicker,3000); setInterval(updateTicker,120000);calcFuel();calcWB();calcFTL();
+showToast('Sistema listo — Bienvenido Sección Aérea Talca 🚁');
+
+/* ============================================================
+   CADENA OPERATIVA — HANDOFF AL PREFLIGHT (App 2)
+   Escribe localStorage['carab_mission_pkg'] con toda la misión.
+   ============================================================ */
+const PREFLIGHT_URL = '../preflight/';   /* ← ajustar a la ruta real del Preflight en GitHub Pages (mismo origen) */
+const MISSION_PKG_KEY = 'carab_mission_pkg';
+
+function _wbCompute(){
+  const g = id => parseFloat(document.getElementById(id)?.value)||0;
+  const bew=g('wb-bew'), bewAx=g('wb-bew-arm'), eq=g('wb-eq'), eqAx=g('wb-eq-ax'), eqAy=g('wb-eq-ay'),
+        bag=g('wb-bag'), p1=g('wb-p1'), p2=g('wb-p2'), paxf=g('wb-paxf'), paxa=g('wb-paxa'), fuel=g('wb-fuel');
+  const momX = bew*bewAx + eq*eqAx + bag*5000 + p1*2439 + p2*2439 + paxf*3331 + paxa*4243 + fuel*4220;
+  const momY = bew*19 + eq*eqAy + p1*390 + p2*(-390) + fuel*(-4);
+  const tow  = bew+eq+bag+p1+p2+paxf+paxa+fuel;
+  const xsta = tow>0 ? momX/tow : bewAx;
+  const ybl  = tow>0 ? momY/tow : 19;
+  const aftPts=[[2980,4388],[2300,4480],[1900,4540],[1700,4575],[1655,4593]];
+  let aftLim=4593;
+  for(let i=0;i<aftPts.length-1;i++){const [m0,s0]=aftPts[i],[m1,s1]=aftPts[i+1]; if(tow<=m0&&tow>=m1){aftLim=s0+(s1-s0)*(m0-tow)/(m0-m1);break;}}
+  const fwdLim=4120;
+  const inLong = xsta>=fwdLim && xsta<=aftLim && tow<=2980;
+  const inLat  = ybl>=-100 && ybl<=100;
+  return {bew,bewAx,eq,eqAx,eqAy,bag,p1,p2,paxf,paxa,fuel,tow,xsta,ybl,fwdLim,aftLim,inLong,inLat,ok:(inLong&&inLat),margin:2980-tow};
+}
+
+function buildMissionPkg(){
+  const val = id => (document.getElementById(id)?.value||'').trim();
+  const num = id => parseFloat(document.getElementById(id)?.value)||0;
+  const wp  = (typeof waypoints!=='undefined' && Array.isArray(waypoints)) ? waypoints : [];
+  const wb  = _wbCompute();
+  // distancia total de ruta (nm) usando hav() del planificador si existe
+  let totalNm=0;
+  try{ for(let i=1;i<wp.length;i++){ totalNm += hav(wp[i-1].lat,wp[i-1].lon,wp[i].lat,wp[i].lon)/1.852; } }catch(e){}
+  const tas = num('fuel-spd')||130;
+  const ete = tas>0 ? totalNm/tas : 0;
+  return {
+    v:2,
+    ts:new Date().toISOString(),
+    meta:{
+      unidad:'Prefectura Aérea · Sección Aérea Talca — Carabineros de Chile',
+      matricula: val('mp-matricula')||'H-135 C-29',
+      piloto: val('mp-piloto'),
+      mision: val('mp-mision'),
+      fecha: val('mp-fecha')
+    },
+    route:{ waypoints: wp, n: wp.length, totalNm:+totalNm.toFixed(1), eteHr:+ete.toFixed(2) },
+    fuel:{ initKg:num('fuel-init'), ffKgHr:num('fuel-ff'), tasKt:tas },
+    wb,
+    perf:{ oat: (num('oge-oat')||num('oei-oat')||15), pa:(num('oge-pa')||num('oei-pa')||0), headwind:(num('oge-hw')||num('oei-hw')||0) },
+    ftl:{ day:num('ftl-day'), week:num('ftl-week'), month:num('ftl-month'), year:num('ftl-year'), mission:num('ftl-mission') }
+  };
+}
+
+function finalizeMission(openPreflight){
+  const pkg = buildMissionPkg();
+  try{
+    localStorage.setItem(MISSION_PKG_KEY, JSON.stringify(pkg));
+  }catch(e){ alert('No se pudo guardar la misión: '+e); return; }
+  const wbTxt = pkg.wb.ok ? 'W&B DENTRO' : 'W&B FUERA';
+  showToast('✓ Misión enviada al Preflight · '+wbTxt+' · '+pkg.wb.tow.toFixed(0)+' kg');
+  if(openPreflight){ window.open(PREFLIGHT_URL,'_blank','noopener'); }
+}
+
+/* Barra flotante FINALIZAR */
+(function(){
+  const bar=document.createElement('div');
+  bar.id='finalize-bar';
+  bar.innerHTML=`
+    <div class="fb-fields">
+      <input id="mp-piloto" placeholder="Piloto" autocomplete="off">
+      <input id="mp-matricula" value="H-135 C-29" autocomplete="off">
+      <input id="mp-mision" placeholder="Misión / N°" autocomplete="off">
+      <input id="mp-fecha" type="date">
+    </div>
+    <div class="fb-actions">
+      <button class="fb-save" onclick="finalizeMission(false)" title="Guardar sin abrir">💾 GUARDAR</button>
+      <button class="fb-go" onclick="finalizeMission(true)" title="Guardar y abrir Preflight">✓ FINALIZAR → PREFLIGHT</button>
+    </div>`;
+  document.body.appendChild(bar);
+  const st=document.createElement('style');
+  st.textContent=`
+    #finalize-bar{position:fixed;left:0;right:0;bottom:0;z-index:9000;display:flex;gap:8px;align-items:center;justify-content:space-between;
+      flex-wrap:wrap;padding:7px 10px;padding-bottom:calc(7px + env(safe-area-inset-bottom));
+      padding-left:calc(10px + env(safe-area-inset-left));padding-right:calc(10px + env(safe-area-inset-right));
+      background:linear-gradient(180deg,rgba(10,14,20,.96),rgba(10,14,20,.99));
+      border-top:2px solid var(--green,#39d353);backdrop-filter:blur(6px);font-family:inherit}
+    #finalize-bar .fb-fields{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+    #finalize-bar input{background:var(--bg3,#151b24);border:1px solid var(--border,#263041);color:var(--text,#dfe7f0);
+      border-radius:6px;padding:6px 8px;font-size:11px;min-width:96px;flex:1}
+    #finalize-bar .fb-actions{display:flex;gap:6px}
+    #finalize-bar button{border:none;border-radius:6px;padding:8px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+    #finalize-bar .fb-save{background:var(--bg3,#151b24);color:var(--cyan,#4fd6ff);border:1px solid var(--cyan,#4fd6ff)}
+    #finalize-bar .fb-go{background:var(--green,#39d353);color:#04120a}
+    #finalize-bar .fb-go:hover{filter:brightness(1.1)}
+    body{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+    @media(max-width:520px){#finalize-bar input{min-width:70px;font-size:10px}#finalize-bar button{padding:8px;font-size:10px}}`;
+  document.head.appendChild(st);
+  // fecha por defecto = hoy
+  try{ document.getElementById('mp-fecha').value=new Date().toISOString().slice(0,10);}catch(e){}
+  // ícono de inicio (Añadir a pantalla de inicio) reutilizando el logo institucional
+  try{
+    const shield=document.querySelector('.shield img')||document.getElementById('startLogo');
+    if(shield&&shield.src){ const l=document.createElement('link'); l.rel='apple-touch-icon'; l.href=shield.src; document.head.appendChild(l); }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
